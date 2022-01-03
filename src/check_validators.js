@@ -86,12 +86,6 @@ const getBeaconchainEndpoint = (network) => {
   return process.env.BEACONCHAIN_ENDPOINT_[network.toUpperCase()]
 }
 
-// get saved data
-// beaconchain https://beaconcha.in/api/v1/docs/index.html
-// update
-// log
-// quick check
-
 // Usage: node src/check_validators.js <network>
 if (process.argv[2] && process.argv[3]) {
   checkValidators(process.argv[2], process.argv[3])
