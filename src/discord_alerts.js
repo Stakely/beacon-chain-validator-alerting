@@ -1,6 +1,10 @@
 const { WebhookClient } = require('discord.js')
 
 const sendMessage = (alertType, publicKey, oldData, newData) => {
+  // Log error message in the console
+  console.error(alertType, publicKey, oldData, newData)
+
+  // Prepare the text sent to Discord
   const text = `**${alertType}**\nOld: ${oldData} - New: ${newData}\n\`${publicKey}\``
 
   const webhookClient = new WebhookClient({ url: process.env.WEBHOOK_URL })

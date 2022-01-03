@@ -1,9 +1,10 @@
 const db = require('./db')
 const fetch = require('node-fetch')
 const discordAlerts = require('./discord_alerts')
+const path = require('path')
+require('dotenv').config({ path: path.join(__dirname, '../.env') })
 
 // Beaconchain API Docs: https://beaconcha.in/api/v1/docs/index.html
-
 const BEACONCHAIN_VALIDATOR_INFO = '$endpoint/api/v1/validator/$validators'
 
 const checkValidators = async (network) => {
@@ -41,17 +42,14 @@ const processBeaconchainData = async (beaconchainData) => {
     const savedValidatorData = (await db.query('SELECT * FROM beacon_monitoring WHERE public_key = ? LIMIT 1', validatorData.pubkey.replace('0x', '')))[0]
     // The balance should always increase
     if (validatorData.balance <= savedValidatorData.balance) {
-      // Error: the amount has been reduced
       discordAlerts.sendMessage('BALANCE-NOT-INCREASING', validatorData.pubkey, savedValidatorData.balance, validatorData.balance)
     }
     // Check slash changes
     if (validatorData.slashed !== savedValidatorData.slashed) {
-      // Slashing status change
       discordAlerts.sendMessage('SLASH-CHANGE', validatorData.pubkey, savedValidatorData.slashed, validatorData.slashed)
     }
     // Check status changes
     if (validatorData.status !== savedValidatorData.status) {
-      // Status change
       discordAlerts.sendMessage('STATUS-CHANGE', validatorData.pubkey, savedValidatorData.status, validatorData.status)
     }
 
