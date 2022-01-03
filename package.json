@@ -1,0 +1,24 @@
+{
+  "name": "beacon-chain-validator-alerting",
+  "version": "1.0.0",
+  "description": "Monitors multiple Beacon Chain validators using the Beaconchain API",
+  "main": "index.js",
+  "scripts": {
+    "test": "echo \"Error: no test specified\" && exit 1"
+  },
+  "repository": {
+    "type": "git",
+    "url": "git+https://github.com/Stakely/beacon-chain-validator-alerting.git"
+  },
+  "author": "iicc - Stakely",
+  "license": "MIT",
+  "bugs": {
+    "url": "https://github.com/Stakely/beacon-chain-validator-alerting/issues"
+  },
+  "homepage": "https://github.com/Stakely/beacon-chain-validator-alerting#readme",
+  "dependencies": {
+    "dotenv": "^10.0.0",
+    "mysql": "^2.18.1",
+    "node-fetch": "^3.1.0"
+  }
+}
