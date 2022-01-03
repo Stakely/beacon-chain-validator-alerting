@@ -7,7 +7,7 @@ const sendMessage = (alertType, publicKey, oldData, newData) => {
   // Prepare the text sent to Discord
   const text = `**${alertType}**\nOld: ${oldData} - New: ${newData}\n\`${publicKey}\``
 
-  const webhookClient = new WebhookClient({ url: process.env.WEBHOOK_URL })
+  const webhookClient = new WebhookClient({ url: process.env.DISCORD_WEBHOOK_URL })
   webhookClient.send({
     username: 'Validator Monitoring Bot',
     content: text

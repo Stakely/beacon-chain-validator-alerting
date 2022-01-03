@@ -83,7 +83,7 @@ const arrayToChunks = (array, chunkSize = 100) => {
 
 // Gets the endpoint from the .env file
 const getBeaconchainEndpoint = (network) => {
-  return process.env.BEACONCHAIN_ENDPOINT_[network]
+  return process.env.BEACONCHAIN_ENDPOINT_[network.toUpperCase()]
 }
 
 // get saved data
