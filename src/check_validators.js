@@ -1,5 +1,6 @@
 const db = require('./db')
 const fetch = require('node-fetch')
+const discordAlerts = require('./discord_alerts')
 
 // Beaconchain API Docs: https://beaconcha.in/api/v1/docs/index.html
 
@@ -41,14 +42,17 @@ const processBeaconchainData = async (beaconchainData) => {
     // The balance should always increase
     if (validatorData.balance <= savedValidatorData.balance) {
       // Error: the amount has been reduced
+      discordAlerts.sendMessage('BALANCE-NOT-INCREASING', validatorData.pubkey, savedValidatorData.balance, validatorData.balance)
     }
     // Check slash changes
     if (validatorData.slashed !== savedValidatorData.slashed) {
-      // Slash change
+      // Slashing status change
+      discordAlerts.sendMessage('SLASH-CHANGE', validatorData.pubkey, savedValidatorData.slashed, validatorData.slashed)
     }
     // Check status changes
     if (validatorData.status !== savedValidatorData.status) {
       // Status change
+      discordAlerts.sendMessage('STATUS-CHANGE', validatorData.pubkey, savedValidatorData.status, validatorData.status)
     }
 
     // Update validator data
