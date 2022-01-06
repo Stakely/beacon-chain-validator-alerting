@@ -13,9 +13,9 @@ Tool developed and maintained by [Stakely.io](https://stakely.io), a professiona
 - Node.js 16 or higher
 - An accesible MySQL server with the following schema:
 
-Table name: ``beacon_monitoring``
+Table name: ``beacon_chain_validators_monitoring``
 
-Columns: ``validator_id (int) | public_key (varchar) | network (varchar) | balance (int) | slashed (varchar) | status (varchar) | updated_at (timestamp)``
+Columns: ``beacon_chain_validator_monitoring_id (int) | public_key (varchar 98) | network (varchar 32) | balance (bigint) (null) | slashed (tinyint) (null) | status (varchar 32) (null) | created_at (timestamp) (current timestamp) | updated_at (timestamp) (update current timestamp)``
 
 <br>
 
@@ -53,4 +53,4 @@ crontab -e
 
 If you have many validators you may need to reduce the check period in order to not hit the Beaconchain API rate limit.
 
-An alternative is to buy the [Beaconchain Paid API](https://beaconcha.in/pricing).
+An alternative is to pay for the [Beaconchain Paid API](https://beaconcha.in/pricing).
