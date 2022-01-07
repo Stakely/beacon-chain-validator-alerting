@@ -32,7 +32,7 @@ const checkValidators = async (network) => {
 
 // Checks the changes between the saved validator data and the new data
 // And alerts if anything have changed that should not happen
-const processBeaconchainData = async (beaconchainData, network) => {
+const processBeaconchainData = async (beaconchainData) => {
   // Normalice the data. Convert requests with 1 validators -which are returned as objects- to array
   if (typeof beaconchainData === 'object' && !Array.isArray(beaconchainData) && beaconchainData !== null) {
     beaconchainData = [beaconchainData]
@@ -72,7 +72,7 @@ const arrayToChunks = (array, chunkSize = 100) => {
   const chunkedArray = []
 
   let counter = 0
-  let counterChunk = -1 // Need to be this value so the first iteration do not produce an empty array
+  let counterChunk = -1 // Needed to not produce an empty array with the first iteration
 
   for (const element of array) {
     const divisionRemainder = counter % chunkSize

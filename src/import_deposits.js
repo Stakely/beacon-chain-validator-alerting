@@ -15,7 +15,7 @@ const importPublicKeys = async (depositFile) => {
   const publicKeys = depositData.map((key) => key.pubkey)
 
   // Get the current saved publicKeys in the db
-  const savedPublicKeys = await db.query('SELECT public_key FROM beacon_chain_validators_monitoring')
+  const savedPublicKeys = await db.query('SELECT public_key FROM beacon_chain_validators_monitoring WHERE network = ?', network)
 
   // Get just the public_key field from the returned array
   const savedPublicKeysMap = savedPublicKeys.map((key) => key.public_key)

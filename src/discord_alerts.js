@@ -6,7 +6,6 @@ const sendMessage = (alertType, publicKey, oldData, newData) => {
 
   // Create the Beaconchain direct link to the validator
   const network = process.argv[2]
-  console.log(network)
   const beaconchainUrl = process.env['BEACONCHAIN_ENDPOINT_' + network.toUpperCase()] + '/validator/' + publicKey + '#attestations'
 
   // Prepare the text sent to Discord
