@@ -43,12 +43,12 @@ node src/check_validators.js <network>
 # Eg. node src/check_validators.js gnosis
 ```
 
-Configure the Crontab to execute the check_validators.js script every five minutes
+Configure the Crontab to execute the check_validators.js script
 ```
 crontab -e
-*/5 * * * * node /your/custom/path/beacon-chain-validator-alerting/src/check_validators.js mainnet
-*/5 * * * * node /your/custom/path/beacon-chain-validator-alerting/src/check_validators.js gnosis
-*/5 * * * * node /your/custom/path/beacon-chain-validator-alerting/src/check_validators.js prater
+23,43 * * * * node /your/custom/path/beacon-chain-validator-alerting/src/check_validators.js mainnet
+24,44 * * * * node /your/custom/path/beacon-chain-validator-alerting/src/check_validators.js gnosis
+25,45 * * * * node /your/custom/path/beacon-chain-validator-alerting/src/check_validators.js prater
 ```
 
 If you have many validators you may need to reduce the check period in order to not hit the Beaconchain API rate limit.
