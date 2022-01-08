@@ -9,7 +9,7 @@ const BEACONCHAIN_VALIDATOR_INFO = '$endpoint/api/v1/validator/$validators'
 
 const checkValidators = async (network) => {
   // Get all the saved validator data
-  const savedValidators = await db.query('SELECT public_key, network FROM beacon_chain_validators_monitoring WHERE network = ?', network)
+  const savedValidators = await db.query('SELECT public_key, network FROM beacon_chain_validators_monitoring WHERE network = ? ORDER BY RAND()', network)
 
   // Since the Beaconchain API call rate is very limited -ten requests per minute-
   // we perform requests of 100 validators at a time, which is the maximum per request
