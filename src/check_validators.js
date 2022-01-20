@@ -13,7 +13,7 @@ const checkValidators = async (network) => {
 
   // Since the Beaconchain API call rate is very limited -ten requests per minute-
   // we perform requests of 100 validators at a time, which is the maximum per request
-  const savedValidatorsChunks = arrayToChunks(savedValidators)
+  const savedValidatorsChunks = arrayToChunks(savedValidators, 70)
   for (const savedValidatorsChunk of savedValidatorsChunks) {
     // Prepare the data to perform the request
     const publicKeyChunkString = savedValidatorsChunk.map((key) => key.public_key).toString()
