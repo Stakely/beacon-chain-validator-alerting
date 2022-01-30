@@ -49,8 +49,8 @@ const processBeaconchainData = async (beaconchainData) => {
       savedValidatorData.slashed = true
     }
     // The balance should always increase if the saved data is not null
-    if (validatorData.balance <= savedValidatorData.balance && savedValidatorData.balance && savedValidatorData.status !== 'pending') {
-      discordAlerts.sendMessage('BALANCE-NOT-INCREASING', validatorData.pubkey, savedValidatorData.balance, validatorData.balance)
+    if (validatorData.balance < savedValidatorData.balance && savedValidatorData.balance && savedValidatorData.status !== 'pending') {
+      discordAlerts.sendMessage('BALANCE-DECREASING', validatorData.pubkey, savedValidatorData.balance, validatorData.balance)
     }
     // Check slash changes if the saved data is not null
     if (validatorData.slashed !== savedValidatorData.slashed && savedValidatorData.slashed !== null) {
