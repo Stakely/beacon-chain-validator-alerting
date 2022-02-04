@@ -28,10 +28,10 @@ Install the Node.js dependencies with `npm install`.
 
 ## Run
 ### Load validator public keys
-Place one or more deposit data json files in the `deposits/` folder and import the public keys
+Place one or more deposit data json files in the `deposits/` folder and import the public keys. The network will be auto detected.
 ```
-node src/import_deposits.js deposits/<file name> <network>
-# Eg. node src/import_deposits.js deposits/deposit_data-1641143430.json gnosis
+node src/import_deposits.js deposits/<file name>
+# Eg. node src/import_deposits.js deposits/deposit_data-1641143430.json
 ```
 
 <br>
@@ -43,7 +43,7 @@ node src/check_validators.js <network>
 # Eg. node src/check_validators.js gnosis
 ```
 
-Configure the Crontab to execute the check_validators.js script
+Configure the Crontab to execute the check_validators.js script periodically. This example performs two checks per network per hour.
 ```
 crontab -e
 23,43 * * * * node /your/custom/path/beacon-chain-validator-alerting/src/check_validators.js mainnet
