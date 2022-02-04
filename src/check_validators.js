@@ -11,8 +11,10 @@ const checkValidators = async (network) => {
   // Get all the saved validator data
   const savedValidators = await db.query('SELECT public_key, network FROM beacon_chain_validators_monitoring WHERE network = ? ORDER BY RAND()', network)
 
-  // Since the Beaconchain API call rate is very limited -ten requests per minute-
-  // we perform requests of 100 validators at a time, which is the maximum per request
+  // Since the Beaconchain API call rate is very limited (ten requests per minute)
+  // we perform requests with multiple validators.
+  // The theoretical max number of validators per request is 100, but we reach at an URL length limit
+  // 70 validators per request is a safe number
   const savedValidatorsChunks = arrayToChunks(savedValidators, 70)
   for (const savedValidatorsChunk of savedValidatorsChunks) {
     // Prepare the data to perform the request
@@ -33,7 +35,7 @@ const checkValidators = async (network) => {
 // Checks the changes between the saved validator data and the new data
 // And alerts if anything have changed that should not happen
 const processBeaconchainData = async (beaconchainData) => {
-  // Normalice the data. Convert requests with 1 validators -which are returned as objects- to array
+  // Normalice the data. Convert requests with 1 validators -which are returned as objects- to an array
   if (typeof beaconchainData === 'object' && !Array.isArray(beaconchainData) && beaconchainData !== null) {
     beaconchainData = [beaconchainData]
   }
