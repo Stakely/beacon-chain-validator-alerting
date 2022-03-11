@@ -26,8 +26,17 @@ const checkValidators = async (network) => {
     const res = await fetch(beaconchainUrl)
     const beaconchainData = await res.json()
 
+    // Handle failed requests
+    if (!beaconchainData.status || beaconchainData.status !== 'OK') {
+      discordAlerts.sendMessage('BEACONCHAIN-API-ERROR', JSON.stringify(beaconchainData, null, 2))
+      continue
+    }
+
     // Process the data returned and continue checking validators
     await processBeaconchainData(beaconchainData.data)
+
+    // Sleep 10 seconds to avoid rate limitting
+    await new Promise(resolve => setTimeout(resolve, 10000))
   }
   console.log('Checking done.', savedValidators.length, 'validators checked')
 }
@@ -52,15 +61,15 @@ const processBeaconchainData = async (beaconchainData) => {
     }
     // The balance should always increase if the saved data is not null
     if (validatorData.balance < savedValidatorData.balance && savedValidatorData.balance && savedValidatorData.status !== 'pending') {
-      discordAlerts.sendMessage('BALANCE-DECREASING', validatorData.pubkey, savedValidatorData.balance, validatorData.balance)
+      discordAlerts.sendValidatorMessage('BALANCE-DECREASING', validatorData.pubkey, savedValidatorData.balance, validatorData.balance)
     }
     // Check slash changes if the saved data is not null
     if (validatorData.slashed !== savedValidatorData.slashed && savedValidatorData.slashed !== null) {
-      discordAlerts.sendMessage('SLASH-CHANGE', validatorData.pubkey, savedValidatorData.slashed, validatorData.slashed)
+      discordAlerts.sendValidatorMessage('SLASH-CHANGE', validatorData.pubkey, savedValidatorData.slashed, validatorData.slashed)
     }
     // Check status changes if the saved data is not null
     if (validatorData.status !== savedValidatorData.status && savedValidatorData.status) {
-      discordAlerts.sendMessage('STATUS-CHANGE', validatorData.pubkey, savedValidatorData.status, validatorData.status)
+      discordAlerts.sendValidatorMessage('STATUS-CHANGE', validatorData.pubkey, savedValidatorData.status, validatorData.status)
     }
 
     // Update validator data
