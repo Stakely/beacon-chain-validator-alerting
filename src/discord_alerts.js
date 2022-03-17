@@ -1,6 +1,6 @@
 const { WebhookClient } = require('discord.js')
 
-const sendValidatorMessage = (alertType, publicKey, oldData, newData) => {
+const sendValidatorMessage = async (alertType, publicKey, oldData, newData) => {
   // Log error message in the console
   console.log(alertType, publicKey, oldData, newData)
 
@@ -16,9 +16,12 @@ const sendValidatorMessage = (alertType, publicKey, oldData, newData) => {
     username: 'Validator Monitoring Bot',
     content: text
   })
+
+  // Sleep 1 second to avoid rate limitting
+  await new Promise(resolve => setTimeout(resolve, 1000))
 }
 
-const sendMessage = (alertType, message) => {
+const sendMessage = async (alertType, message) => {
   // Log error message in the console
   console.log(alertType, message)
 
@@ -32,6 +35,9 @@ const sendMessage = (alertType, message) => {
     username: 'Validator Monitoring Bot',
     content: text
   })
+
+  // Sleep 1 second to avoid rate limitting
+  await new Promise(resolve => setTimeout(resolve, 1000))
 }
 
 // Gets the Discord webhook from the .env file

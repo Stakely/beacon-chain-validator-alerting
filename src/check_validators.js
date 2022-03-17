@@ -28,7 +28,7 @@ const checkValidators = async (network) => {
 
     // Handle failed requests
     if (!beaconchainData.status || beaconchainData.status !== 'OK') {
-      discordAlerts.sendMessage('BEACONCHAIN-API-ERROR', JSON.stringify(beaconchainData, null, 2))
+      await discordAlerts.sendMessage('BEACONCHAIN-API-ERROR', JSON.stringify(beaconchainData, null, 2))
       continue
     }
 
@@ -61,15 +61,15 @@ const processBeaconchainData = async (beaconchainData) => {
     }
     // The balance should always increase if the saved data is not null
     if (validatorData.balance < savedValidatorData.balance && savedValidatorData.balance && savedValidatorData.status !== 'pending') {
-      discordAlerts.sendValidatorMessage('BALANCE-DECREASING', validatorData.pubkey, savedValidatorData.balance, validatorData.balance)
+      await discordAlerts.sendValidatorMessage('BALANCE-DECREASING', validatorData.pubkey, savedValidatorData.balance, validatorData.balance)
     }
     // Check slash changes if the saved data is not null
     if (validatorData.slashed !== savedValidatorData.slashed && savedValidatorData.slashed !== null) {
-      discordAlerts.sendValidatorMessage('SLASH-CHANGE', validatorData.pubkey, savedValidatorData.slashed, validatorData.slashed)
+      await discordAlerts.sendValidatorMessage('SLASH-CHANGE', validatorData.pubkey, savedValidatorData.slashed, validatorData.slashed)
     }
     // Check status changes if the saved data is not null
     if (validatorData.status !== savedValidatorData.status && savedValidatorData.status) {
-      discordAlerts.sendValidatorMessage('STATUS-CHANGE', validatorData.pubkey, savedValidatorData.status, validatorData.status)
+      await discordAlerts.sendValidatorMessage('STATUS-CHANGE', validatorData.pubkey, savedValidatorData.status, validatorData.status)
     }
 
     // Update validator data
