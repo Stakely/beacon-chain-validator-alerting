@@ -8,7 +8,7 @@ const discordAlerts = require('./discord_alerts')
 const BEACONCHAIN_VALIDATOR_INFO = '$endpoint/api/v1/validator/$validators'
 
 const checkValidators = async (network) => {
-  // Get all the saved validator data
+  // Get all the saved validator data randomly
   const savedValidators = await db.query('SELECT public_key, network FROM beacon_chain_validators_monitoring WHERE network = ? ORDER BY RAND()', network)
 
   // Since the Beaconchain API call rate is very limited (ten requests per minute)
@@ -51,7 +51,8 @@ const processBeaconchainData = async (beaconchainData) => {
 
   // Iterate all validators returned in the response
   for (const validatorData of beaconchainData) {
-    const savedValidatorData = (await db.query('SELECT * FROM beacon_chain_validators_monitoring WHERE public_key = ? LIMIT 1', validatorData.pubkey.replace('0x', '')))[0]
+    const savedValidatorData = (await db.query('SELECT balance, status, slashed, server_identifier FROM beacon_chain_validators_monitoring WHERE public_key = ? LIMIT 1',
+      validatorData.pubkey.replace('0x', '')))[0]
 
     // Convert slash tinyint to boolean
     if (savedValidatorData.slashed === 0) {
@@ -61,15 +62,15 @@ const processBeaconchainData = async (beaconchainData) => {
     }
     // The balance should always increase if the saved data is not null
     if (validatorData.balance < savedValidatorData.balance && savedValidatorData.balance && savedValidatorData.status !== 'pending') {
-      await discordAlerts.sendValidatorMessage('BALANCE-DECREASING', validatorData.pubkey, savedValidatorData.balance, validatorData.balance)
+      await discordAlerts.sendValidatorMessage('BALANCE-DECREASING', validatorData.server_identifier, validatorData.pubkey, savedValidatorData.balance, validatorData.balance)
     }
     // Check slash changes if the saved data is not null
     if (validatorData.slashed !== savedValidatorData.slashed && savedValidatorData.slashed !== null) {
-      await discordAlerts.sendValidatorMessage('SLASH-CHANGE', validatorData.pubkey, savedValidatorData.slashed, validatorData.slashed)
+      await discordAlerts.sendValidatorMessage('SLASH-CHANGE', validatorData.server_identifier, validatorData.pubkey, savedValidatorData.slashed, validatorData.slashed)
     }
     // Check status changes if the saved data is not null
     if (validatorData.status !== savedValidatorData.status && savedValidatorData.status) {
-      await discordAlerts.sendValidatorMessage('STATUS-CHANGE', validatorData.pubkey, savedValidatorData.status, validatorData.status)
+      await discordAlerts.sendValidatorMessage('STATUS-CHANGE', validatorData.server_identifier, validatorData.pubkey, savedValidatorData.status, validatorData.status)
     }
 
     // Update validator data

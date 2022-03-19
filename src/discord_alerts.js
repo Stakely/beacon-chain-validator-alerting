@@ -1,15 +1,15 @@
 const { WebhookClient } = require('discord.js')
 
-const sendValidatorMessage = async (alertType, publicKey, oldData, newData) => {
+const sendValidatorMessage = async (alertType, serverIdentifier, publicKey, oldData, newData) => {
   // Log error message in the console
-  console.log(alertType, publicKey, oldData, newData)
+  console.log(alertType, serverIdentifier, publicKey, oldData, newData)
 
   // Create the Beaconchain direct link to the validator
   const network = process.argv[2]
   const beaconchainUrl = process.env['BEACONCHAIN_ENDPOINT_' + network.toUpperCase()] + '/validator/' + publicKey + '#attestations'
 
   // Prepare the text sent to Discord
-  const text = `**${alertType}**\nNetwork: ${network}\n${oldData} 🡺 ${newData}\n[${publicKey}](<${beaconchainUrl}>)`
+  const text = `**${alertType}**\nServer identifier: ${serverIdentifier}\nNetwork: ${network}\n${oldData} 🡺 ${newData}\n[${publicKey}](<${beaconchainUrl}>)`
 
   const webhookClient = new WebhookClient({ url: getDiscordWebhook(network) })
   webhookClient.send({
