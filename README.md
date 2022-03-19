@@ -15,7 +15,7 @@ Tool developed and maintained by [Stakely.io](https://stakely.io), a professiona
 
 Table name: ``beacon_chain_validators_monitoring``
 
-Columns: ``beacon_chain_validator_monitoring_id (int) | public_key (varchar 98) | network (varchar 32) | balance (bigint) (null) | slashed (tinyint 1) (null) | status (varchar 32) (null) | server_identifier (varchar 32) (null) | created_at (timestamp) (current timestamp) | updated_at (timestamp) (on update current timestamp)``
+Columns: ``beacon_chain_validator_monitoring_id (int) | public_key (varchar 98) | network (varchar 32) | balance (bigint) (null) | slashed (tinyint 1) (null) | status (varchar 32) (null) | server_hostname (varchar 100) (null) | created_at (timestamp) (current timestamp) | updated_at (timestamp) (on update current timestamp)``
 
 <br>
 
