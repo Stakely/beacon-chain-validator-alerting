@@ -9,7 +9,7 @@ const sendValidatorMessage = async (alertType, serverHostname, publicKey, oldDat
   const beaconchainUrl = process.env['BEACONCHAIN_ENDPOINT_' + network.toUpperCase()] + '/validator/' + publicKey + '#attestations'
 
   // Prepare the text sent to Discord
-  const text = `**${alertType}**\nServer identifier: ${serverHostname}\nNetwork: ${network}\n${oldData} 🡺 ${newData}\n[${publicKey}](<${beaconchainUrl}>)`
+  const text = `**${alertType}**\nServer hostname: ${serverHostname}\nNetwork: ${network}\n${oldData} 🡺 ${newData}\n[${publicKey}](<${beaconchainUrl}>)`
 
   const webhookClient = new WebhookClient({ url: getDiscordWebhook(network) })
   webhookClient.send({
