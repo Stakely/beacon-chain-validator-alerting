@@ -36,7 +36,7 @@ const checkValidators = async (network) => {
     await processBeaconchainData(beaconchainData.data)
 
     // Sleep 10 seconds to avoid rate limitting
-    await new Promise(resolve => setTimeout(resolve, 10000))
+    await new Promise(resolve => setTimeout(resolve, 15000))
   }
   console.log('Checking done.', savedValidators.length, 'validators checked')
 }

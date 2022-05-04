@@ -18,7 +18,7 @@ const sendValidatorMessage = async (alertType, serverHostname, publicKey, oldDat
   })
 
   // Sleep 1 second to avoid rate limitting
-  await new Promise(resolve => setTimeout(resolve, 1000))
+  await new Promise(resolve => setTimeout(resolve, 2000))
 }
 
 const sendMessage = async (alertType, message) => {
