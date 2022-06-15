@@ -23,7 +23,11 @@ const checkValidators = async (network) => {
     const beaconchainUrl = BEACONCHAIN_VALIDATOR_INFO.replace('$endpoint', beaconchainEndpoint).replace('$validators', publicKeyChunkString)
 
     // Perform a request to the Beaconchain API
-    const res = await fetch(beaconchainUrl)
+    const res = await fetch(beaconchainUrl, {
+      headers: {
+        apikey: process.env.BEACONCHAIN_API_KEY
+      }
+    })
     const beaconchainData = await res.json()
 
     // Handle failed requests
