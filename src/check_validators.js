@@ -6,12 +6,13 @@ const discordAlerts = require('./discord_alerts')
 
 // Beaconchain API Docs: https://beaconcha.in/api/v1/docs/index.html
 const BEACONCHAIN_VALIDATOR_INFO = '$endpoint/api/v1/validator/$validators'
+const BEACONCHAIN_VALIDATOR_ATTESTATIONS = '$endpoint/api/v1/validator/$validators/attestations'
 
 const checkValidators = async (network) => {
   // Get all the saved validator data randomly
   const savedValidators = await db.query('SELECT public_key, network FROM beacon_chain_validators_monitoring WHERE network = ? ORDER BY RAND()', network)
 
-  // Since the Beaconchain API call rate is very limited (ten requests per minute)
+  // Since the Beaconchain API call rate is limited
   // we perform requests with multiple validators.
   // The theoretical max number of validators per request is 100, but we reach at an URL length limit
   // 75 validators per request is a safe number
@@ -39,8 +40,21 @@ const checkValidators = async (network) => {
     // Process the data returned and continue checking validators
     await processBeaconchainData(beaconchainData.data)
 
-    // Sleep 10 seconds to avoid rate limitting
-    await new Promise(resolve => setTimeout(resolve, 15000))
+    // Check attestation performance with a random validator
+    const validatorPublicKey = savedValidatorsChunk[0].public_key
+    const beaconchainAttestationsUrl = BEACONCHAIN_VALIDATOR_ATTESTATIONS.replace('$endpoint', beaconchainEndpoint).replace('$validators', validatorPublicKey)
+    const resLatestAttestations = await fetch(beaconchainAttestationsUrl, {
+      headers: {
+        apikey: process.env.BEACONCHAIN_API_KEY
+      }
+    })
+    const latestAttestationsData = await resLatestAttestations.json()
+
+    // Process the data returned and continue checking validators
+    await processLatestAttestationData(latestAttestationsData, validatorPublicKey)
+
+    // Set this sleep to avoid rate limitting if you are using the free plan
+    // await new Promise(resolve => setTimeout(resolve, 15000))
   }
   console.log('Checking done.', savedValidators.length, 'validators checked')
 }
@@ -64,10 +78,11 @@ const processBeaconchainData = async (beaconchainData) => {
     } else if (savedValidatorData.slashed === 1) {
       savedValidatorData.slashed = true
     }
+    // This message was too spammy. Replaced by the attestation check
     // The balance should always increase if the saved data is not null
-    if (validatorData.balance < savedValidatorData.balance && savedValidatorData.balance && savedValidatorData.status !== 'pending') {
-      await discordAlerts.sendValidatorMessage('BALANCE-DECREASING', savedValidatorData.server_hostname, validatorData.pubkey, savedValidatorData.balance, validatorData.balance)
-    }
+    // if (validatorData.balance < savedValidatorData.balance && savedValidatorData.balance && savedValidatorData.status !== 'pending') {
+    //  await discordAlerts.sendValidatorMessage('BALANCE-DECREASING', savedValidatorData.server_hostname, validatorData.pubkey, savedValidatorData.balance, validatorData.balance)
+    // }
     // Check slash changes if the saved data is not null
     if (validatorData.slashed !== savedValidatorData.slashed && savedValidatorData.slashed !== null) {
       await discordAlerts.sendValidatorMessage('SLASH-CHANGE', savedValidatorData.server_hostname, validatorData.pubkey, savedValidatorData.slashed, validatorData.slashed)
@@ -80,6 +95,28 @@ const processBeaconchainData = async (beaconchainData) => {
     // Update validator data
     await db.query('UPDATE beacon_chain_validators_monitoring SET balance = ?, slashed = ?, status = ? WHERE public_key = ?',
       [validatorData.balance, validatorData.slashed, validatorData.status, validatorData.pubkey.replace('0x', '')])
+  }
+}
+
+const processLatestAttestationData = async (latestAttestations, validatorPublicKey) => {
+  // Search for missed attestations in the last 10 epochs
+  let missedAttestationsCount = 0
+  const missedSlots = []
+
+  // Remove the latest attestation slot since the epoch may not be justified yet. We really check the last 9 epochs
+  latestAttestations.data.shift()
+
+  for (const attestation of latestAttestations.data) {
+    if (attestation.status === 0) {
+      missedAttestationsCount++
+      missedSlots.push(attestation.attesterslot)
+    }
+  }
+  // Notify if more than 2 attestations were lost
+  if (missedAttestationsCount >= 2) {
+    // Get information about that validator
+    const savedValidatorData = (await db.query('SELECT server_hostname FROM beacon_chain_validators_monitoring WHERE public_key = ? LIMIT 1', validatorPublicKey))[0]
+    await discordAlerts.sendValidatorMessage('ATTESTATIONS-MISSED', savedValidatorData.server_hostname, validatorPublicKey, `A total of ${missedAttestationsCount} attestations were missed during the lastest 9 justified epochs.\nMissed epochs: ${missedSlots.join(', ')}`)
   }
 }
 
