@@ -10,11 +10,16 @@ const sendValidatorMessage = async (alertType, serverHostname, publicKey, oldDat
 
   // Prepare the text sent to Discord
   const title = `**${alertType}**`
-  const description = `Server hostname: ${serverHostname}\nNetwork: ${network}\n${oldData} 🡺 ${newData}\n[${publicKey}](<${beaconchainUrl}>)`
+  let description
+  if (newData) {
+    description = `**Server hostname:** ${serverHostname}\n**Network:** ${network}\n${oldData} 🡺 ${newData}\n[${publicKey}](<${beaconchainUrl}>)`
+  } else {
+    description = `**Server hostname:** ${serverHostname}\n**Network:** ${network}\n${oldData}\n[${publicKey}](<${beaconchainUrl}>)`
+  }
 
   // Select a color depending on the importance
   let color
-  if (alertType === 'BALANCE-DECREASING') {
+  if (alertType === 'ATTESTATIONS-MISSED') {
     color = 'ff9966' // Orange
   } else if (alertType === 'SLASH-CHANGE') {
     color = 'cc3300' // Red
