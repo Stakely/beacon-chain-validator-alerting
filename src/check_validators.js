@@ -89,7 +89,12 @@ const processBeaconchainData = async (beaconchainData) => {
     }
     // Check status changes if the saved data is not null
     if (validatorData.status !== savedValidatorData.status && savedValidatorData.status) {
-      await discordAlerts.sendValidatorMessage('STATUS-CHANGE', savedValidatorData.server_hostname, validatorData.pubkey, savedValidatorData.status, validatorData.status)
+      // These changes are almost everytime false positives
+      if ((savedValidatorData.status === 'active_offline' && validatorData.status === 'active_online') || (savedValidatorData.status === 'active_online' && validatorData.status === 'active_offline')) {
+        // Spam
+      } else {
+        await discordAlerts.sendValidatorMessage('STATUS-CHANGE', savedValidatorData.server_hostname, validatorData.pubkey, savedValidatorData.status, validatorData.status)
+      }
     }
 
     // Update validator data
@@ -112,8 +117,8 @@ const processLatestAttestationData = async (latestAttestations, validatorPublicK
       missedSlots.push(attestation.attesterslot)
     }
   }
-  // Notify if more than 2 attestations were lost
-  if (missedAttestationsCount >= 2) {
+  // Notify if more than one attestation were lost
+  if (missedAttestationsCount >= 1) {
     // Get information about that validator
     const savedValidatorData = (await db.query('SELECT server_hostname FROM beacon_chain_validators_monitoring WHERE public_key = ? LIMIT 1', validatorPublicKey))[0]
     await discordAlerts.sendValidatorMessage('ATTESTATIONS-MISSED', savedValidatorData.server_hostname, validatorPublicKey, `A total of ${missedAttestationsCount} attestations were missed during the lastest 9 justified epochs.\nMissed epochs: ${missedSlots.join(', ')}`)
