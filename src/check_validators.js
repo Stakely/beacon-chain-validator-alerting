@@ -118,7 +118,7 @@ const processLatestAttestationData = async (latestAttestations, validatorPublicK
     }
   }
   // Notify if more than one attestation were lost
-  if (missedAttestationsCount >= 1) {
+  if (missedAttestationsCount > 1) {
     // Get information about that validator
     const savedValidatorData = (await db.query('SELECT server_hostname FROM beacon_chain_validators_monitoring WHERE public_key = ? LIMIT 1', validatorPublicKey))[0]
     await discordAlerts.sendValidatorMessage('ATTESTATIONS-MISSED', savedValidatorData.server_hostname, validatorPublicKey, `A total of ${missedAttestationsCount} attestations were missed during the lastest 9 justified epochs.\nMissed epochs: ${missedSlots.join(', ')}`)
