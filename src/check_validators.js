@@ -87,8 +87,8 @@ const processBeaconchainData = async (beaconchainData) => {
     if (validatorData.slashed !== savedValidatorData.slashed && savedValidatorData.slashed !== null) {
       await discordAlerts.sendValidatorMessage('SLASH-CHANGE', savedValidatorData.server_hostname, validatorData.pubkey, savedValidatorData.slashed, validatorData.slashed)
     }
-    // Check status changes if the saved data is not null
-    if (validatorData.status !== savedValidatorData.status && savedValidatorData.status) {
+    // Check status changes even if the saved data is null (validator starts validating)
+    if (validatorData.status !== savedValidatorData.status) {
       // These changes are almost everytime false positives
       if ((savedValidatorData.status === 'active_offline' && validatorData.status === 'active_online') || (savedValidatorData.status === 'active_online' && validatorData.status === 'active_offline')) {
         // Spam
