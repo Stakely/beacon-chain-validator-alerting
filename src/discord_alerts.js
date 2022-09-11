@@ -1,20 +1,20 @@
 const { WebhookClient } = require('discord.js')
 
-const sendValidatorMessage = async (alertType, serverHostname, publicKey, oldData, newData) => {
+const sendValidatorMessage = async (alertType, serverHostname, validatorIndex, oldData, newData) => {
   // Log error message in the console
-  console.log(alertType, serverHostname, publicKey, oldData, newData)
+  console.log(alertType, serverHostname, validatorIndex, oldData, newData)
 
   // Create the Beaconchain direct link to the validator
   const network = process.argv[2]
-  const beaconchainUrl = process.env['BEACONCHAIN_ENDPOINT_' + network.toUpperCase()] + '/validator/' + publicKey + '#attestations'
+  const beaconchainUrl = process.env['BEACONCHAIN_ENDPOINT_' + network.toUpperCase()] + '/validator/' + validatorIndex + '#attestations'
 
   // Prepare the text sent to Discord
   const title = `**${alertType}**`
   let description
   if (newData) {
-    description = `**Server hostname:** ${serverHostname}\n**Network:** ${network}\n${oldData} 🡺 ${newData}\n[${publicKey}](<${beaconchainUrl}>)`
+    description = `**Server hostname:** ${serverHostname}\n**Network:** ${network}\n${oldData} 🡺 ${newData}\n[${validatorIndex}](<${beaconchainUrl}>)`
   } else {
-    description = `**Server hostname:** ${serverHostname}\n**Network:** ${network}\n${oldData}\n[${publicKey}](<${beaconchainUrl}>)`
+    description = `**Server hostname:** ${serverHostname}\n**Network:** ${network}\n${oldData}\n[${validatorIndex}](<${beaconchainUrl}>)`
   }
 
   // Select a color depending on the importance
