@@ -154,7 +154,6 @@ const checkSyncCommittees = async () => {
   const savedValidators = await db.query('SELECT validator_index, server_hostname, last_epoch_checked FROM beacon_chain_validators_monitoring WHERE network = ? AND validator_index IS NOT NULL', network)
 
   const beaconchainUrlLatest = BEACONCHAIN_VALIDATOR_SYNC_COMMITTEES.replace('$endpoint', beaconchainEndpoint) + 'latest'
-  console.log(beaconchainUrlLatest)
 
   const res = await fetch(beaconchainUrlLatest, {
     headers: {
@@ -168,38 +167,19 @@ const checkSyncCommittees = async () => {
     await discordAlerts.sendMessage('BEACONCHAIN-API-ERROR', JSON.stringify(beaconchainDataLatest, null, 2))
   }
 
-  // Iterate all validators returned in the response
-  for (const validatorData of beaconchainData) {
-    const savedValidatorData = (await db.query('SELECT balance, status, slashed, server_hostname FROM beacon_chain_validators_monitoring WHERE validator_index = ? LIMIT 1',
-      validatorData.validatorindex))[0]
-
-    // Convert slash tinyint to boolean
-    if (savedValidatorData.slashed === 0) {
-      savedValidatorData.slashed = false
-    } else if (savedValidatorData.slashed === 1) {
-      savedValidatorData.slashed = true
-    }
-    // This message was too spammy. Replaced by the attestation check
-    // The balance should always increase if the saved data is not null
-    // if (validatorData.balance < savedValidatorData.balance && savedValidatorData.balance && savedValidatorData.status !== 'pending') {
-    //  await discordAlerts.sendValidatorMessage('BALANCE-DECREASING', savedValidatorData.server_hostname, validatorData.validatorindex, savedValidatorData.balance, validatorData.balance)
-    // }
-    // Check slash changes if the saved data is not null
-    if (validatorData.slashed !== savedValidatorData.slashed && savedValidatorData.slashed !== null) {
-      await discordAlerts.sendValidatorMessage('SLASH-CHANGE', savedValidatorData.server_hostname, validatorData.validatorindex, savedValidatorData.slashed, validatorData.slashed)
-    }
-    // Check status changes if the saved data is not null
-    if (validatorData.status !== savedValidatorData.status && savedValidatorData.status) {
-      // These changes are almost everytime false positives
-      if ((savedValidatorData.status === 'active_offline' && validatorData.status === 'active_online') || (savedValidatorData.status === 'active_online' && validatorData.status === 'active_offline')) {
-        // Spam
-      } else {
-        await discordAlerts.sendValidatorMessage('STATUS-CHANGE', savedValidatorData.server_hostname, validatorData.validatorindex, savedValidatorData.status, validatorData.status)
+  const latestValidators = beaconchainDataLatest.data.validators
+  for (const latestValidator of latestValidators) {
+    for (const savedValidator of savedValidators) {
+      if (latestValidator === savedValidator.validator_index) {
+        if (savedValidator.last_epoch_checked < beaconchainDataLatest.data.start_epoch) {
+          await discordAlerts.sendValidatorMessage('SYNC-COMMITTEE', savedValidator.server_hostname, latestValidator,
+            `Validator in current sync commitee.\n Start epoch: ${beaconchainDataLatest.data.start_epoch}, end epoch: ${beaconchainDataLatest.data.end_epoch}, period: ${beaconchainDataLatest.data.period}`)
+        }
       }
     }
   }
 
-  const beaconchainUrlNext = BEACONCHAIN_VALIDATOR_SYNC_COMMITEES.replace('$endpoint', beaconchainEndpoint) + 'next'
+  const beaconchainUrlNext = BEACONCHAIN_VALIDATOR_SYNC_COMMITTEES.replace('$endpoint', beaconchainEndpoint) + 'next'
 
   const resp = await fetch(beaconchainUrlNext, {
     headers: {
@@ -218,7 +198,7 @@ const checkSyncCommittees = async () => {
     for (const savedValidator of savedValidators) {
       if (nextValidator === savedValidator.validator_index) {
         // We use latest here since it is the start of the window
-        if (savedValidator.last_epoch_checked < beaconchainDataNext.data.start_epoch) {
+        if (savedValidator.last_epoch_checked < beaconchainDataLatest.data.start_epoch) {
           await discordAlerts.sendValidatorMessage('SYNC-COMMITTEE', savedValidator.server_hostname, nextValidator,
             `Validator in next sync commitee.\n Start epoch: ${beaconchainDataNext.data.start_epoch}, end epoch: ${beaconchainDataNext.data.end_epoch}, period: ${beaconchainDataNext.data.period}`)
         }
