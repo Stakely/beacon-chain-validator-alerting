@@ -19,7 +19,7 @@ const sendValidatorMessage = async (alertType, serverHostname, validatorIndex, o
 
   // Select a color depending on the importance
   let color
-  if (alertType === 'ATTESTATIONS-MISSED') {
+  if (alertType === 'ATTESTATIONS-MISSED' || alertType === 'BLOCK-MISSED' || alertType === 'BALANCE-DECREASING') {
     color = 'ff9966' // Orange
   } else if (alertType === 'SLASH-CHANGE') {
     color = 'cc3300' // Red
@@ -30,7 +30,7 @@ const sendValidatorMessage = async (alertType, serverHostname, validatorIndex, o
       color = 'ffcc00' // Yellow
     }
   }
-  // Default color as a backup (it shouldnt appear)
+  // Default color
   if (!color) {
     color = '636264' // Gray
   }
