@@ -309,7 +309,7 @@ const checkAttestations = async () => {
     }
 
     // Last epoch is always discarded since it has not finished
-    const lastEpoch = beaconchainData[0].epoch
+    const lastEpoch = beaconchainData[0].epoch - 1
 
     for (const validatorData of beaconchainData) {
       const savedValidatorData = savedValidators.find(validator => validator.validator_index === validatorData.validatorindex)
