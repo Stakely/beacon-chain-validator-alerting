@@ -6,7 +6,7 @@ const sendValidatorMessage = async (alertType, serverHostname, validatorIndex, o
 
   // Create the Beaconchain direct link to the validator
   const network = process.argv[2]
-  const beaconchainUrl = process.env['BEACONCHAIN_ENDPOINT_' + network.toUpperCase()] + '/validator/' + validatorIndex + '#attestations'
+  const beaconchainUrl = process.env['BEACONCHAIN_ENDPOINT_' + network.toUpperCase()] + '/validator/' + validatorIndex
 
   // Prepare the text sent to Discord
   const title = `**${alertType}**`
@@ -14,12 +14,16 @@ const sendValidatorMessage = async (alertType, serverHostname, validatorIndex, o
   if (newData) {
     description = `**Server hostname:** ${serverHostname}\n**Network:** ${network}\n${oldData} 🡺 ${newData}\n[${validatorIndex}](<${beaconchainUrl}>)`
   } else {
-    description = `**Server hostname:** ${serverHostname}\n**Network:** ${network}\n${oldData}\n[${validatorIndex}](<${beaconchainUrl}>)`
+    if (validatorIndex) {
+      description = `**Server hostname:** ${serverHostname}\n**Network:** ${network}\n${oldData}\n[${validatorIndex}](<${beaconchainUrl}>)`
+    } else {
+      description = `**Server hostname:** ${serverHostname}\n**Network:** ${network}\n${oldData}`
+    }    
   }
 
   // Select a color depending on the importance
   let color
-  if (alertType === 'ATTESTATIONS-MISSED' || alertType === 'BLOCK-MISSED' || alertType === 'BALANCE-DECREASING') {
+  if (alertType === 'ATTESTATIONS-MISSED-OR-DELAYED' || alertType === 'BLOCK-MISSED' || alertType === 'BALANCE-DECREASING') {
     color = 'ff9966' // Orange
   } else if (alertType === 'SLASH-CHANGE') {
     color = 'cc3300' // Red
