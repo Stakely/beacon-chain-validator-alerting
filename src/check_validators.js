@@ -346,13 +346,13 @@ const checkAttestations = async () => {
     }
   }
 
-  // Send missed attestations warnings grouped by server hostname
-  let text = ''
+  // Send attestations warnings grouped by server hostname
   for (const hostname in aggregatedMissedAttestations) {
+    let text = `*Total: ${aggregatedMissedAttestations[hostname].length}*`
     for (const missedAttestation of aggregatedMissedAttestations[hostname]) {
-      text = text + `Validator [${missedAttestation.validatorIndex}](<${beaconchainExplorer.replace('$validatorIndex', missedAttestation.validatorIndex)}>) - Epoch ${missedAttestation.epoch}\n`
+      text = text + `\nValidator [${missedAttestation.validatorIndex}](<${beaconchainExplorer.replace('$validatorIndex', missedAttestation.validatorIndex)}>) - Epoch ${missedAttestation.epoch}`
     }
-    await discordAlerts.sendValidatorMessage('ATTESTATIONS-MISSED-OR-DELAYED', hostname, null, text)
+    await discordAlerts.sendValidatorMessage('ATTESTATIONS-MISSED-DELAYED', hostname, null, text)
   }
   console.log('Attestations check done. ', savedValidators.length, 'validators checked')
 }
