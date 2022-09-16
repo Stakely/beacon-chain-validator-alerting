@@ -10,8 +10,18 @@ const BEACONCHAIN_VALIDATOR_ATTESTATIONS = '$endpoint/api/v1/validator/$validato
 const BEACONCHAIN_VALIDATOR_BLOCKS = '$endpoint/api/v1/validator/$validators/proposals'
 const BEACONCHAIN_VALIDATOR_SYNC_COMMITTEES = '$endpoint/api/v1/sync_committee/'
 
-const beaconchainEndpoint = process.env['BEACONCHAIN_ENDPOINT_' + process.argv[2].toUpperCase()]
 const network = process.argv[2]
+const beaconchainEndpoint = process.env['BEACONCHAIN_ENDPOINT_' + network.toUpperCase()]
+const beaconchainExplorer = beaconchainEndpoint + '/validator/$validatorIndex#attestations'
+let execExplorer
+if (network === 'prater') {
+  execExplorer = 'https://goerli.etherscan.io/block/'
+} else if (network === 'gnosis') {
+  execExplorer = 'https://blockscout.com/xdai/mainnet/block/'
+} else {
+  execExplorer = 'https://etherscan.io/block/'
+}
+
 
 const checkValidators = async () => {
   // todo mejorar balances -0.0004
@@ -251,19 +261,21 @@ const checkBlocks = async () => {
       const savedValidatorData = savedValidators.find(validator => validator.validator_index === validatorData.proposer)
       if (validatorData.epoch < lastEpoch && validatorData.epoch > savedValidatorData.last_epoch_checked) {
         const blockInfo = `
-        Slot                   : ${validatorData.slot}
-        Epoch:                 : ${validatorData.epoch}
-        Exec block number      : ${validatorData.exec_block_number}
-        Exec fee recipient     : ${validatorData.exec_fee_recipient}
-        Exec gas limit         : ${validatorData.exec_gas_limit}
-        Exec gas used          : ${validatorData.exec_gas_used}
+        Validator\t\t\t\t\t\t\t: [${validatorData.proposer}](<${beaconchainExplorer.replace('$validatorIndex', validatorData.proposer)}${validatorData.proposer}>)
+        Exec block hash\t\t\t\t: [${validatorData.eth1data_blockhash}](<${execExplorer}${validatorData.eth1data_blockhash}>)
+        Slot \t\t\t\t\t\t\t\t\t: ${validatorData.slot}
+        Epoch\t\t\t\t\t\t\t\t\t: ${validatorData.epoch}
+        Exec block number\t\t\t: ${validatorData.exec_block_number}
+        Exec fee recipient \t\t: ${validatorData.exec_fee_recipient}
+        Exec gas limit \t\t\t\t: ${validatorData.exec_gas_limit}
+        Exec gas used\t\t\t\t\t: ${validatorData.exec_gas_used}
         Exec transactions count: ${validatorData.exec_transactions_count}
-        Graffiti text          : ${validatorData.graffiti_text}
-        Status                 : ${validatorData.status}`
+        Graffiti text\t\t\t\t\t: ${validatorData.graffiti_text}
+        Status \t\t\t\t\t\t\t\t: ${validatorData.status}`
         if (validatorData.status !== '1') {
-          await discordAlerts.sendValidatorMessage('BLOCK-MISSED', savedValidatorData.server_hostname, validatorData.proposer, `Block missed or delayed.\n${blockInfo}`)
+          await discordAlerts.sendValidatorMessage('BLOCK-MISSED', savedValidatorData.server_hostname, null, `Block missed or delayed.\n${blockInfo}`)
         } else {
-          await discordAlerts.sendValidatorMessage('BLOCK-PROPOSED', savedValidatorData.server_hostname, validatorData.proposer, blockInfo)
+          await discordAlerts.sendValidatorMessage('BLOCK-PROPOSED', savedValidatorData.server_hostname, null, blockInfo)
         }
       }
     }
@@ -274,6 +286,9 @@ const checkBlocks = async () => {
 const checkAttestations = async () => {
   // Get all the saved validator data randomly
   const savedValidators = await db.query('SELECT validator_index, last_epoch_checked, server_hostname FROM beacon_chain_validators_monitoring WHERE network = ? AND validator_index IS NOT NULL ORDER BY RAND()', network)
+
+  // Extract all the data first and then send an aggregate message by hostname
+  const aggregatedMissedAttestations = {}
 
   // The maximum number of validators per request is 100
   const savedValidatorsChunks = arrayToChunks(savedValidators, 100)
@@ -314,15 +329,30 @@ const checkAttestations = async () => {
     for (const validatorData of beaconchainData) {
       const savedValidatorData = savedValidators.find(validator => validator.validator_index === validatorData.validatorindex)
       if (validatorData.epoch < lastEpoch && validatorData.status !== 1 && validatorData.epoch > savedValidatorData.last_epoch_checked) {
-        await discordAlerts.sendValidatorMessage('ATTESTATIONS-MISSED', savedValidatorData.server_hostname, validatorData.validatorindex, `Attestation missed or delayed in epoch ${validatorData.epoch}.\nBeaconchain status: ${validatorData.status}`)
+        if (!aggregatedMissedAttestations[savedValidatorData.server_hostname]) {
+          aggregatedMissedAttestations[savedValidatorData.server_hostname] = []
+        }
+        // Save the missed attestations to send the data aggregated by hostname
+        aggregatedMissedAttestations[savedValidatorData.server_hostname].push({
+          validatorIndex: validatorData.validatorindex,
+          epoch: validatorData.epoch,
+        })
       }
     }
-
     // Update all the last checked finalized epoch for all the validators
     const indexesChunk = savedValidatorsChunk.map((key) => key.validator_index)
     for (const indexChunk of indexesChunk) {
       await db.query('UPDATE beacon_chain_validators_monitoring SET last_epoch_checked = ? WHERE validator_index = ?', [lastEpoch - 1, indexChunk])
     }
+  }
+
+  // Send missed attestations warnings grouped by server hostname
+  let text = ''
+  for (const hostname in aggregatedMissedAttestations) {
+    for (const missedAttestation of aggregatedMissedAttestations[hostname]) {
+      text = text + `Validator [${missedAttestation.validatorIndex}](<${beaconchainExplorer.replace('$validatorIndex', missedAttestation.validatorIndex)}>) - Epoch ${missedAttestation.epoch}\n`
+    }
+    await discordAlerts.sendValidatorMessage('ATTESTATIONS-MISSED-OR-DELAYED', hostname, null, text)
   }
   console.log('Attestations check done. ', savedValidators.length, 'validators checked')
 }
