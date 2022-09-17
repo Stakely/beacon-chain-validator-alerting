@@ -110,7 +110,6 @@ const checkBeaconchainData = async () => {
       continue
     }
 
-
     // Handle failed requests
     if (!beaconchainData.status || beaconchainData.status !== 'OK') {
       await discordAlerts.sendMessage('BEACONCHAIN-API-ERROR', JSON.stringify(beaconchainData, null, 2))
@@ -261,12 +260,9 @@ const checkBlocks = async () => {
       beaconchainData = [beaconchainData]
     }
 
-    // Last epoch is always discarded since it has not finished
-    const lastEpoch = beaconchainData[0].epoch
-
     for (const validatorData of beaconchainData) {
       const savedValidatorData = savedValidators.find(validator => validator.validator_index === validatorData.proposer)
-      if (validatorData.epoch < lastEpoch && validatorData.epoch > savedValidatorData.last_epoch_checked) {
+      if (validatorData.epoch > savedValidatorData.last_epoch_checked) {
         const blockInfo = `Validator: [${validatorData.proposer}](<${beaconchainExplorer.replace('$validatorIndex', validatorData.proposer)}${validatorData.proposer}>)
         Exec block hash: [${validatorData.eth1data_blockhash}](<${execExplorer}${validatorData.eth1data_blockhash}>)
         Slot: ${validatorData.slot}
@@ -329,12 +325,12 @@ const checkAttestations = async () => {
       continue
     }
 
-    // Last epoch is always discarded since it has not finished
-    const lastEpoch = beaconchainData[0].epoch - 1
+    // Two latest epoches are always discarded since they have not finished
+    const lastEpoch = beaconchainData[0].epoch - 2
 
     for (const validatorData of beaconchainData) {
       const savedValidatorData = savedValidators.find(validator => validator.validator_index === validatorData.validatorindex)
-      if (validatorData.epoch < lastEpoch && validatorData.status !== 1 && validatorData.epoch > savedValidatorData.last_epoch_checked) {
+      if (validatorData.epoch <= lastEpoch && validatorData.status !== 1 && validatorData.epoch > savedValidatorData.last_epoch_checked) {
         if (!aggregatedMissedAttestations[savedValidatorData.server_hostname]) {
           aggregatedMissedAttestations[savedValidatorData.server_hostname] = []
         }
@@ -348,7 +344,7 @@ const checkAttestations = async () => {
     // Update all the last checked finalized epoch for all the validators
     const indexesChunk = savedValidatorsChunk.map((key) => key.validator_index)
     for (const indexChunk of indexesChunk) {
-      await db.query('UPDATE beacon_chain_validators_monitoring SET last_epoch_checked = ? WHERE validator_index = ?', [lastEpoch - 1, indexChunk])
+      await db.query('UPDATE beacon_chain_validators_monitoring SET last_epoch_checked = ? WHERE validator_index = ?', [lastEpoch, indexChunk])
     }
   }
 
