@@ -13,6 +13,7 @@ const BEACONCHAIN_VALIDATOR_SYNC_COMMITTEES = '$endpoint/api/v1/sync_committee/'
 const network = process.argv[2]
 const beaconchainEndpoint = process.env['BEACONCHAIN_ENDPOINT_' + network.toUpperCase()]
 const beaconchainExplorer = beaconchainEndpoint + '/validator/$validatorIndex#attestations'
+const beaconchainExplorerSlot = beaconchainEndpoint + '/slot/$slot'
 let execExplorer
 if (network === 'prater') {
   execExplorer = 'https://goerli.etherscan.io/block/'
@@ -263,9 +264,10 @@ const checkBlocks = async () => {
     for (const validatorData of beaconchainData) {
       const savedValidatorData = savedValidators.find(validator => validator.validator_index === validatorData.proposer)
       if (validatorData.epoch > savedValidatorData.last_epoch_checked) {
-        const blockInfo = `Validator: [${validatorData.proposer}](<${beaconchainExplorer.replace('$validatorIndex', validatorData.proposer)}${validatorData.proposer}>)
+        const blockInfo = `
+        Validator: [${validatorData.proposer}](<${beaconchainExplorer.replace('$validatorIndex', validatorData.proposer)}>)
         Exec block hash: [${validatorData.eth1data_blockhash}](<${execExplorer}${validatorData.eth1data_blockhash}>)
-        Slot: ${validatorData.slot}
+        Slot: [${validatorData.slot}](<${beaconchainExplorerSlot.replace('$slot', validatorData.slot)}>)
         Epoch: ${validatorData.epoch}
         Exec block number: ${validatorData.exec_block_number}
         Exec fee recipient: ${validatorData.exec_fee_recipient}
