@@ -97,12 +97,19 @@ const checkBeaconchainData = async () => {
     const beaconchainUrl = BEACONCHAIN_VALIDATOR_INFO.replace('$endpoint', beaconchainEndpoint).replace('$validators', indexesChunkString)
 
     // Perform a request to the Beaconchain API
-    const res = await fetch(beaconchainUrl, {
-      headers: {
-        apikey: process.env.BEACONCHAIN_API_KEY
-      }
-    })
-    let beaconchainData = await res.json()
+    let res, beaconchainData
+    try {
+      res = await fetch(beaconchainUrl, {
+        headers: {
+          apikey: process.env.BEACONCHAIN_API_KEY
+        }
+      })
+      beaconchainData = await res.json()
+    } catch (error) {
+      console.error('Beaconchain API error. URL', beaconchainUrl, 'response', JSON.stringify(res))
+      continue
+    }
+
 
     // Handle failed requests
     if (!beaconchainData.status || beaconchainData.status !== 'OK') {
@@ -183,7 +190,7 @@ const checkSyncCommittees = async () => {
       if (latestValidator === savedValidator.validator_index) {
         if (savedValidator.last_epoch_checked < beaconchainDataLatest.data.start_epoch) {
           await discordAlerts.sendValidatorMessage('SYNC-COMMITTEE', savedValidator.server_hostname, latestValidator,
-            `Validator in current sync commitee.\n Start epoch: ${beaconchainDataLatest.data.start_epoch}, end epoch: ${beaconchainDataLatest.data.end_epoch}, period: ${beaconchainDataLatest.data.period}`)
+            `Validator in **current** sync commitee.\n Start epoch: ${beaconchainDataLatest.data.start_epoch}, end epoch: ${beaconchainDataLatest.data.end_epoch}, period: ${beaconchainDataLatest.data.period}`)
         }
       }
     }
@@ -210,7 +217,7 @@ const checkSyncCommittees = async () => {
         // We use latest here since it is the start of the window
         if (savedValidator.last_epoch_checked < beaconchainDataLatest.data.start_epoch) {
           await discordAlerts.sendValidatorMessage('SYNC-COMMITTEE', savedValidator.server_hostname, nextValidator,
-            `Validator in next sync commitee.\n Start epoch: ${beaconchainDataNext.data.start_epoch}, end epoch: ${beaconchainDataNext.data.end_epoch}, period: ${beaconchainDataNext.data.period}`)
+            `Validator in **next** sync commitee.\nStart epoch: ${beaconchainDataNext.data.start_epoch}, end epoch: ${beaconchainDataNext.data.end_epoch}, period: ${beaconchainDataNext.data.period}`)
         }
       }
     }
@@ -260,18 +267,17 @@ const checkBlocks = async () => {
     for (const validatorData of beaconchainData) {
       const savedValidatorData = savedValidators.find(validator => validator.validator_index === validatorData.proposer)
       if (validatorData.epoch < lastEpoch && validatorData.epoch > savedValidatorData.last_epoch_checked) {
-        const blockInfo = `
-        Validator\t\t\t\t\t\t\t: [${validatorData.proposer}](<${beaconchainExplorer.replace('$validatorIndex', validatorData.proposer)}${validatorData.proposer}>)
-        Exec block hash\t\t\t\t: [${validatorData.eth1data_blockhash}](<${execExplorer}${validatorData.eth1data_blockhash}>)
-        Slot \t\t\t\t\t\t\t\t\t: ${validatorData.slot}
-        Epoch\t\t\t\t\t\t\t\t\t: ${validatorData.epoch}
-        Exec block number\t\t\t: ${validatorData.exec_block_number}
-        Exec fee recipient \t\t: ${validatorData.exec_fee_recipient}
-        Exec gas limit \t\t\t\t: ${validatorData.exec_gas_limit}
-        Exec gas used\t\t\t\t\t: ${validatorData.exec_gas_used}
+        const blockInfo = `Validator: [${validatorData.proposer}](<${beaconchainExplorer.replace('$validatorIndex', validatorData.proposer)}${validatorData.proposer}>)
+        Exec block hash: [${validatorData.eth1data_blockhash}](<${execExplorer}${validatorData.eth1data_blockhash}>)
+        Slot: ${validatorData.slot}
+        Epoch: ${validatorData.epoch}
+        Exec block number: ${validatorData.exec_block_number}
+        Exec fee recipient: ${validatorData.exec_fee_recipient}
+        Exec gas limit: ${validatorData.exec_gas_limit}
+        Exec gas used: ${validatorData.exec_gas_used}
         Exec transactions count: ${validatorData.exec_transactions_count}
-        Graffiti text\t\t\t\t\t: ${validatorData.graffiti_text}
-        Status \t\t\t\t\t\t\t\t: ${validatorData.status}`
+        Graffiti text: ${validatorData.graffiti_text}
+        Status: ${validatorData.status}`
         if (validatorData.status !== '1') {
           await discordAlerts.sendValidatorMessage('BLOCK-MISSED', savedValidatorData.server_hostname, null, `Block missed or delayed.\n${blockInfo}`)
         } else {
@@ -349,8 +355,14 @@ const checkAttestations = async () => {
   // Send attestations warnings grouped by server hostname
   for (const hostname in aggregatedMissedAttestations) {
     let text = `**Total attestations:** ${aggregatedMissedAttestations[hostname].length}`
+    let attestationsCount = 0
     for (const missedAttestation of aggregatedMissedAttestations[hostname]) {
+      if (attestationsCount >= 10) {
+        text = text + `\n**Truncated**`
+        break
+      }
       text = text + `\nValidator\t[${missedAttestation.validatorIndex}](<${beaconchainExplorer.replace('$validatorIndex', missedAttestation.validatorIndex)}>)\t-\tEpoch\t${missedAttestation.epoch}`
+      attestationsCount++
     }
     await discordAlerts.sendValidatorMessage('ATTESTATIONS-MISSED-DELAYED', hostname, null, text)
   }
