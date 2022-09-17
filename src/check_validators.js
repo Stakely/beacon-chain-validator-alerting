@@ -264,18 +264,17 @@ const checkBlocks = async () => {
     for (const validatorData of beaconchainData) {
       const savedValidatorData = savedValidators.find(validator => validator.validator_index === validatorData.proposer)
       if (validatorData.epoch > savedValidatorData.last_epoch_checked) {
-        const blockInfo = `
-        Validator: [${validatorData.proposer}](<${beaconchainExplorer.replace('$validatorIndex', validatorData.proposer)}>)
-        Exec block hash: [${validatorData.eth1data_blockhash}](<${execExplorer}${validatorData.eth1data_blockhash}>)
-        Slot: [${validatorData.slot}](<${beaconchainExplorerSlot.replace('$slot', validatorData.slot)}>)
-        Epoch: ${validatorData.epoch}
-        Exec block number: ${validatorData.exec_block_number}
-        Exec fee recipient: ${validatorData.exec_fee_recipient}
-        Exec gas limit: ${validatorData.exec_gas_limit}
-        Exec gas used: ${validatorData.exec_gas_used}
-        Exec transactions count: ${validatorData.exec_transactions_count}
-        Graffiti text: ${validatorData.graffiti_text}
-        Status: ${validatorData.status}`
+        const blockInfo = `Validator: [${validatorData.proposer}](<${beaconchainExplorer.replace('$validatorIndex', validatorData.proposer)}>)
+Exec block hash: [${validatorData.eth1data_blockhash}](<${execExplorer}${validatorData.eth1data_blockhash}>)
+Slot: [${validatorData.slot}](<${beaconchainExplorerSlot.replace('$slot', validatorData.slot)}>)
+Epoch: ${validatorData.epoch}
+Exec block number: ${validatorData.exec_block_number}
+Exec fee recipient: ${validatorData.exec_fee_recipient}
+Exec gas limit: ${validatorData.exec_gas_limit}
+Exec gas used: ${validatorData.exec_gas_used}
+Exec transactions count: ${validatorData.exec_transactions_count}
+Graffiti: ${validatorData.graffiti_text}
+Status: ${validatorData.status}`
         if (validatorData.status !== '1') {
           await discordAlerts.sendValidatorMessage('BLOCK-MISSED', savedValidatorData.server_hostname, null, `Block missed or delayed.\n${blockInfo}`)
         } else {
