@@ -13,9 +13,34 @@ Tool developed and maintained by [Stakely.io](https://stakely.io), a professiona
 - Node.js 16 or higher
 - An accesible MySQL server with the following schema:
 
-Table name: ``beacon_chain_validators_monitoring``
+```
+SET SQL_MODE = "NO_AUTO_VALUE_ON_ZERO";
+START TRANSACTION;
+SET time_zone = "+00:00";
 
-Columns: ``beacon_chain_validator_monitoring_id (int) | public_key (varchar 98) | network (varchar 32) | balance (bigint) (null) | slashed (tinyint 1) (null) | status (varchar 32) (null) | server_hostname (varchar 100) (null) | created_at (timestamp) (current timestamp) | updated_at (timestamp) (on update current timestamp)``
+CREATE TABLE `beacon_chain_validators_monitoring` (
+  `beacon_chain_validator_monitoring_id` int UNSIGNED NOT NULL,
+  `public_key` varchar(96) CHARACTER SET utf8mb4 COLLATE utf8mb4_unicode_ci NOT NULL,
+  `validator_index` int UNSIGNED DEFAULT NULL,
+  `network` varchar(32) COLLATE utf8mb4_unicode_ci NOT NULL,
+  `balance` bigint DEFAULT NULL,
+  `slashed` tinyint(1) DEFAULT NULL,
+  `status` varchar(32) CHARACTER SET utf8mb4 COLLATE utf8mb4_unicode_ci DEFAULT NULL,
+  `last_epoch_checked` int UNSIGNED DEFAULT NULL,
+  `server_hostname` varchar(100) COLLATE utf8mb4_unicode_ci DEFAULT NULL,
+  `created_at` timestamp NOT NULL DEFAULT CURRENT_TIMESTAMP,
+  `updated_at` timestamp NOT NULL DEFAULT CURRENT_TIMESTAMP ON UPDATE CURRENT_TIMESTAMP
+) ENGINE=InnoDB DEFAULT CHARSET=utf8mb4 COLLATE=utf8mb4_unicode_ci;
+
+ALTER TABLE `beacon_chain_validators_monitoring`
+  ADD PRIMARY KEY (`beacon_chain_validator_monitoring_id`),
+  ADD UNIQUE KEY `beacon_chain_validators_monitoring_network_public_key_unique` (`network`,`public_key`),
+  ADD UNIQUE KEY `bcvmv_validator_index_network_unique` (`validator_index`,`network`);
+
+ALTER TABLE `beacon_chain_validators_monitoring`
+  MODIFY `beacon_chain_validator_monitoring_id` int UNSIGNED NOT NULL AUTO_INCREMENT;
+COMMIT;
+```
 
 <br>
 
@@ -46,9 +71,9 @@ node src/check_validators.js <network>
 Configure the Crontab to execute the check_validators.js script periodically. This example performs two checks per network per hour.
 ```
 crontab -e
-23,43 * * * * node /your/custom/path/beacon-chain-validator-alerting/src/check_validators.js mainnet
-24,44 * * * * node /your/custom/path/beacon-chain-validator-alerting/src/check_validators.js gnosis
-25,45 * * * * node /your/custom/path/beacon-chain-validator-alerting/src/check_validators.js prater
+23,43 * * * * node /your/custom/path/beacon-chain-validator-alerting/src/check_validators.js mainnet  >> /your/custom/path/beacon-chain-validator-alerting/mainnet.log 2>&1
+24,44 * * * * node /your/custom/path/beacon-chain-validator-alerting/src/check_validators.js gnosis  >> /your/custom/path/beacon-chain-validator-alerting/gnosis.log 2>&1
+25,45 * * * * node /your/custom/path/beacon-chain-validator-alerting/src/check_validators.js prater  >> /your/custom/path/beacon-chain-validator-alerting/prater.log 2>&1
 ```
 
 If you have many validators you may need to reduce the check period in order to not hit the Beaconchain API rate limit.
