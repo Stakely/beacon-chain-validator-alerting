@@ -9,6 +9,7 @@ const BEACONCHAIN_VALIDATOR_INFO = '$endpoint/api/v1/validator/$validators'
 const BEACONCHAIN_VALIDATOR_ATTESTATIONS = '$endpoint/api/v1/validator/$validators/attestations'
 const BEACONCHAIN_VALIDATOR_BLOCKS = '$endpoint/api/v1/validator/$validators/proposals'
 const BEACONCHAIN_VALIDATOR_SYNC_COMMITTEES = '$endpoint/api/v1/sync_committee/'
+const BEACONCHAIN_VALIDATOR_EPOCH = '$endpoint/api/v1/epoch/$epoch'
 
 const network = process.argv[2]
 const beaconchainEndpoint = process.env['BEACONCHAIN_ENDPOINT_' + network.toUpperCase()]
@@ -229,6 +230,17 @@ const checkBlocks = async () => {
   // Get all the saved validator data randomly
   const savedValidators = await db.query('SELECT validator_index, last_epoch_checked, server_hostname FROM beacon_chain_validators_monitoring WHERE network = ? AND validator_index IS NOT NULL ORDER BY RAND()', network)
 
+  // Get the last epoch to discard non-finalized data
+  const beaconchainUrl = BEACONCHAIN_VALIDATOR_EPOCH.replace('$endpoint', beaconchainEndpoint).replace('$epoch', 'latest')
+  // Perform a request to the Beaconchain API
+  const res = await fetch(beaconchainUrl, {
+    headers: {
+      apikey: process.env.BEACONCHAIN_API_KEY
+    }
+  })
+  let beaconchainData = await res.json()
+  const latestEpoch = beaconchainData.data.epoch
+
   // The maximum number of validators per request is 100
   const savedValidatorsChunks = arrayToChunks(savedValidators, 100)
   for (const savedValidatorsChunk of savedValidatorsChunks) {
@@ -263,7 +275,7 @@ const checkBlocks = async () => {
 
     for (const validatorData of beaconchainData) {
       const savedValidatorData = savedValidators.find(validator => validator.validator_index === validatorData.proposer)
-      if (validatorData.epoch > savedValidatorData.last_epoch_checked) {
+      if (validatorData.epoch < latestEpoch && validatorData.epoch > savedValidatorData.last_epoch_checked) {
         const blockInfo = `Validator: [${validatorData.proposer}](<${beaconchainExplorer.replace('$validatorIndex', validatorData.proposer)}>)
 Slot: [${validatorData.slot}](<${beaconchainExplorerSlot.replace('$slot', validatorData.slot)}>)
 Epoch: ${validatorData.epoch}
@@ -272,10 +284,11 @@ Exec fee recipient: ${validatorData.exec_fee_recipient}
 Exec gas limit: ${validatorData.exec_gas_limit}
 Exec gas used: ${validatorData.exec_gas_used}
 Exec transactions count: ${validatorData.exec_transactions_count}
-Graffiti: ${validatorData.graffiti_text}
-Status: ${validatorData.status}`
+Graffiti: ${validatorData.graffiti_text}`
         if (validatorData.status !== '1') {
-          await discordAlerts.sendValidatorMessage('BLOCK-MISSED', savedValidatorData.server_hostname, null, `Block missed or delayed.\n${blockInfo}`)
+          await discordAlerts.sendValidatorMessage('BLOCK-MISSED', savedValidatorData.server_hostname, null, blockInfo)
+        } else if (validatorData.exec_transactions_count === 0) {
+          await discordAlerts.sendValidatorMessage('BLOCK-EMPTY', savedValidatorData.server_hostname, null, blockInfo)
         } else {
           await discordAlerts.sendValidatorMessage('BLOCK-PROPOSED', savedValidatorData.server_hostname, null, blockInfo)
         }
