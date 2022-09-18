@@ -265,10 +265,9 @@ const checkBlocks = async () => {
       const savedValidatorData = savedValidators.find(validator => validator.validator_index === validatorData.proposer)
       if (validatorData.epoch > savedValidatorData.last_epoch_checked) {
         const blockInfo = `Validator: [${validatorData.proposer}](<${beaconchainExplorer.replace('$validatorIndex', validatorData.proposer)}>)
-Exec block hash: [${validatorData.eth1data_blockhash}](<${execExplorer}${validatorData.eth1data_blockhash}>)
 Slot: [${validatorData.slot}](<${beaconchainExplorerSlot.replace('$slot', validatorData.slot)}>)
 Epoch: ${validatorData.epoch}
-Exec block number: ${validatorData.exec_block_number}
+Exec block number: [${validatorData.exec_block_number}](<${execExplorer}${validatorData.exec_block_number}>)
 Exec fee recipient: ${validatorData.exec_fee_recipient}
 Exec gas limit: ${validatorData.exec_gas_limit}
 Exec gas used: ${validatorData.exec_gas_used}
