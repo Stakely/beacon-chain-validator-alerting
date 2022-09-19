@@ -5,28 +5,19 @@ const fetch = require('node-fetch')
 const discordAlerts = require('./discord_alerts')
 
 // Beaconchain API Docs: https://beaconcha.in/api/v1/docs/index.html
+
+const NETWORK = process.argv[2]
 const BEACONCHAIN_VALIDATOR_INFO = '$endpoint/api/v1/validator/$validators'
 const BEACONCHAIN_VALIDATOR_ATTESTATIONS = '$endpoint/api/v1/validator/$validators/attestations'
 const BEACONCHAIN_VALIDATOR_BLOCKS = '$endpoint/api/v1/validator/$validators/proposals'
 const BEACONCHAIN_VALIDATOR_SYNC_COMMITTEES = '$endpoint/api/v1/sync_committee/'
 const BEACONCHAIN_VALIDATOR_EPOCH = '$endpoint/api/v1/epoch/$epoch'
-
-const network = process.argv[2]
-const beaconchainEndpoint = process.env['BEACONCHAIN_ENDPOINT_' + network.toUpperCase()]
-const beaconchainExplorer = beaconchainEndpoint + '/validator/$validatorIndex#attestations'
-const beaconchainExplorerSlot = beaconchainEndpoint + '/slot/$slot'
-let execExplorer
-if (network === 'prater') {
-  execExplorer = 'https://goerli.etherscan.io/block/'
-} else if (network === 'gnosis') {
-  execExplorer = 'https://blockscout.com/xdai/mainnet/block/'
-} else {
-  execExplorer = 'https://etherscan.io/block/'
-}
-
+const BEACONCHAIN_ENDPOINT = process.env['BEACONCHAIN_ENDPOINT_' + NETWORK.toUpperCase()]
+const BEACONCHAIN_EXPLORER = BEACONCHAIN_ENDPOINT + '/validator/$validatorIndex#attestations'
+const BEACONCHAIN_EXPLORER_SLOT = BEACONCHAIN_ENDPOINT + '/slot/$slot'
+const EXEC_EXPLORER = process.env['EXEC_EXPLORER_' + NETWORK.toUpperCase()]
 
 const checkValidators = async () => {
-  // todo mejorar balances -0.0004
   console.time('elapsed')
   console.log(new Date(), 'Starting BeaconChain Validator Alerting for the network: ' + network)
 
@@ -36,7 +27,7 @@ const checkValidators = async () => {
   // Check Beaconchain data
   await checkBeaconchainData()
 
-  // Check sync comitees (not available in prater)
+  // Check sync comitees (data not available in prater)
   if (network !== 'prater')  await checkSyncCommittees()
 
   // Check blocks
@@ -51,14 +42,14 @@ const checkValidators = async () => {
 
 const convertPublicKeysToIndexes = async () => {
   // Get a random sample of 70 saved validators without index
-  // We do not fetch all the validators to save requests
+  // We do not fetch all the validators here since requests are limited
   const savedValidators = await db.query('SELECT public_key FROM beacon_chain_validators_monitoring WHERE network = ? AND validator_index IS NULL ORDER BY RAND() LIMIT 70', network)
   // Iterate validators in groups of 70 instead of 100 since the url is too large using public keys
   const savedValidatorsChunks = arrayToChunks(savedValidators, 70)
   for (const savedValidatorsChunk of savedValidatorsChunks) {
     // Prepare the data to perform the request
     const publicKeysChunkString = savedValidatorsChunk.map((key) => key.public_key).toString()
-    const beaconchainUrl = BEACONCHAIN_VALIDATOR_INFO.replace('$endpoint', beaconchainEndpoint).replace('$validators', publicKeysChunkString)
+    const beaconchainUrl = BEACONCHAIN_VALIDATOR_INFO.replace('$endpoint', BEACONCHAIN_ENDPOINT).replace('$validators', publicKeysChunkString)
     // Perform the request to the Beaconchain API
     const res = await fetch(beaconchainUrl, {
       headers: {
@@ -96,7 +87,7 @@ const checkBeaconchainData = async () => {
   for (const savedValidatorsChunk of savedValidatorsChunks) {
     // Prepare the data to perform the request
     const indexesChunkString = savedValidatorsChunk.map((key) => key.validator_index).toString()
-    const beaconchainUrl = BEACONCHAIN_VALIDATOR_INFO.replace('$endpoint', beaconchainEndpoint).replace('$validators', indexesChunkString)
+    const beaconchainUrl = BEACONCHAIN_VALIDATOR_INFO.replace('$endpoint', BEACONCHAIN_ENDPOINT).replace('$validators', indexesChunkString)
 
     // Perform a request to the Beaconchain API
     let res, beaconchainData
@@ -130,18 +121,17 @@ const checkBeaconchainData = async () => {
 
     // Iterate all validators returned in the response
     for (const validatorData of beaconchainData) {
+      // Get saved validator data from the request we made previously from the db
       const savedValidatorData = savedValidators.find(validator => validator.validator_index === validatorData.validatorindex)
 
-      // Convert slash tinyint to boolean
+      // Convert slash data tinyint to boolean
       if (savedValidatorData.slashed === 0) {
         savedValidatorData.slashed = false
       } else if (savedValidatorData.slashed === 1) {
         savedValidatorData.slashed = true
       }
-      // This message was too spammy. Replaced by the attestation check
-      // The balance should always increase if the saved data is not null
-      // Update 19/2022: second opportunity
-      if (savedValidatorData.balance === 37527038857) console.log(validatorData.balance)
+    
+      // Check for large balance decrease. Missed sync committee duties should trigger this
        if (validatorData.balance < savedValidatorData.balance - 40000 && savedValidatorData.balance && savedValidatorData.status !== 'pending') {
         await discordAlerts.sendValidatorMessage('BALANCE-DECREASING', savedValidatorData.server_hostname, validatorData.validatorindex, savedValidatorData.balance / 1e9, validatorData.balance / 1e9)
       }
@@ -168,11 +158,10 @@ const checkBeaconchainData = async () => {
 }
 
 const checkSyncCommittees = async () => {
-  // Get all the saved validatorsy
+  // Get all the saved validators
   const savedValidators = await db.query('SELECT validator_index, server_hostname, last_epoch_checked FROM beacon_chain_validators_monitoring WHERE network = ? AND validator_index IS NOT NULL', network)
 
-  const beaconchainUrlLatest = BEACONCHAIN_VALIDATOR_SYNC_COMMITTEES.replace('$endpoint', beaconchainEndpoint) + 'latest'
-
+  const beaconchainUrlLatest = BEACONCHAIN_VALIDATOR_SYNC_COMMITTEES.replace('$endpoint', BEACONCHAIN_ENDPOINT) + 'latest'
   const res = await fetch(beaconchainUrlLatest, {
     headers: {
       apikey: process.env.BEACONCHAIN_API_KEY
@@ -185,6 +174,7 @@ const checkSyncCommittees = async () => {
     await discordAlerts.sendMessage('BEACONCHAIN-API-ERROR', JSON.stringify(beaconchainDataLatest, null, 2))
   }
 
+  // Checks if any validator is in the current sync committee
   const latestValidators = beaconchainDataLatest.data.validators
   for (const latestValidator of latestValidators) {
     for (const savedValidator of savedValidators) {
@@ -197,8 +187,7 @@ const checkSyncCommittees = async () => {
     }
   }
 
-  const beaconchainUrlNext = BEACONCHAIN_VALIDATOR_SYNC_COMMITTEES.replace('$endpoint', beaconchainEndpoint) + 'next'
-
+  const beaconchainUrlNext = BEACONCHAIN_VALIDATOR_SYNC_COMMITTEES.replace('$endpoint', BEACONCHAIN_ENDPOINT) + 'next'
   const resp = await fetch(beaconchainUrlNext, {
     headers: {
       apikey: process.env.BEACONCHAIN_API_KEY
@@ -211,11 +200,12 @@ const checkSyncCommittees = async () => {
     await discordAlerts.sendMessage('BEACONCHAIN-API-ERROR', JSON.stringify(beaconchainDataNext, null, 2))
   }
 
+  // Checks if any validator is in the next sync committee
   const nextValidators = beaconchainDataNext.data.validators
   for (const nextValidator of nextValidators) {
     for (const savedValidator of savedValidators) {
       if (nextValidator === savedValidator.validator_index) {
-        // We use latest here since it is the start of the window
+        // We use latest here since it is the start of the check window
         if (savedValidator.last_epoch_checked < beaconchainDataLatest.data.start_epoch) {
           await discordAlerts.sendValidatorMessage('SYNC-COMMITTEE', savedValidator.server_hostname, nextValidator,
             `Validator in **next** sync commitee.\nStart epoch: ${beaconchainDataNext.data.start_epoch}, end epoch: ${beaconchainDataNext.data.end_epoch}, period: ${beaconchainDataNext.data.period}`)
@@ -231,8 +221,7 @@ const checkBlocks = async () => {
   const savedValidators = await db.query('SELECT validator_index, last_epoch_checked, server_hostname FROM beacon_chain_validators_monitoring WHERE network = ? AND validator_index IS NOT NULL ORDER BY RAND()', network)
 
   // Get the last epoch to discard non-finalized data
-  const beaconchainUrl = BEACONCHAIN_VALIDATOR_EPOCH.replace('$endpoint', beaconchainEndpoint).replace('$epoch', 'latest')
-  // Perform a request to the Beaconchain API
+  const beaconchainUrl = BEACONCHAIN_VALIDATOR_EPOCH.replace('$endpoint', BEACONCHAIN_ENDPOINT).replace('$epoch', 'latest')
   const res = await fetch(beaconchainUrl, {
     headers: {
       apikey: process.env.BEACONCHAIN_API_KEY
@@ -246,7 +235,7 @@ const checkBlocks = async () => {
   for (const savedValidatorsChunk of savedValidatorsChunks) {
     // Prepare the data to perform the request
     const indexesChunkString = savedValidatorsChunk.map((key) => key.validator_index).toString()
-    const beaconchainUrl = BEACONCHAIN_VALIDATOR_BLOCKS.replace('$endpoint', beaconchainEndpoint).replace('$validators', indexesChunkString)
+    const beaconchainUrl = BEACONCHAIN_VALIDATOR_BLOCKS.replace('$endpoint', BEACONCHAIN_ENDPOINT).replace('$validators', indexesChunkString)
 
     // Perform a request to the Beaconchain API
     const res = await fetch(beaconchainUrl, {
@@ -273,13 +262,14 @@ const checkBlocks = async () => {
       beaconchainData = [beaconchainData]
     }
 
+    // Check block proposal issues from the last check to the latest justified epoch
     for (const validatorData of beaconchainData) {
       const savedValidatorData = savedValidators.find(validator => validator.validator_index === validatorData.proposer)
       if (validatorData.epoch < latestEpoch && validatorData.epoch > savedValidatorData.last_epoch_checked) {
-        const blockInfo = `Validator: [${validatorData.proposer}](<${beaconchainExplorer.replace('$validatorIndex', validatorData.proposer)}>)
-Slot: [${validatorData.slot}](<${beaconchainExplorerSlot.replace('$slot', validatorData.slot)}>)
+        const blockInfo = `Validator: [${validatorData.proposer}](<${BEACONCHAIN_EXPLORER.replace('$validatorIndex', validatorData.proposer)}>)
+Slot: [${validatorData.slot}](<${BEACONCHAIN_EXPLORER_SLOT.replace('$slot', validatorData.slot)}>)
 Epoch: ${validatorData.epoch}
-Exec block number: [${validatorData.exec_block_number}](<${execExplorer}${validatorData.exec_block_number}>)
+Exec block number: [${validatorData.exec_block_number}](<${EXEC_EXPLORER}${validatorData.exec_block_number}>)
 Exec fee recipient: ${validatorData.exec_fee_recipient}
 Exec gas limit: ${validatorData.exec_gas_limit}
 Exec gas used: ${validatorData.exec_gas_used}
@@ -310,7 +300,7 @@ const checkAttestations = async () => {
   for (const savedValidatorsChunk of savedValidatorsChunks) {
     // Prepare the data to perform the request
     const indexesChunkString = savedValidatorsChunk.map((key) => key.validator_index).toString()
-    const beaconchainUrl = BEACONCHAIN_VALIDATOR_ATTESTATIONS.replace('$endpoint', beaconchainEndpoint).replace('$validators', indexesChunkString)
+    const beaconchainUrl = BEACONCHAIN_VALIDATOR_ATTESTATIONS.replace('$endpoint', BEACONCHAIN_ENDPOINT).replace('$validators', indexesChunkString)
 
     // Perform a request to the Beaconchain API
     const res = await fetch(beaconchainUrl, {
@@ -338,7 +328,7 @@ const checkAttestations = async () => {
       continue
     }
 
-    // Two latest epoches are always discarded since they have not finished
+    // Two latest epoches are always discarded since they have not finalized
     const lastEpoch = beaconchainData[0].epoch - 2
 
     for (const validatorData of beaconchainData) {
@@ -366,11 +356,12 @@ const checkAttestations = async () => {
     let text = `**Total attestations:** ${aggregatedMissedAttestations[hostname].length}`
     let attestationsCount = 0
     for (const missedAttestation of aggregatedMissedAttestations[hostname]) {
+      // Limit up to 10 attestations per message
       if (attestationsCount >= 10) {
         text = text + `\n**Truncated**`
         break
       }
-      text = text + `\nValidator\t[${missedAttestation.validatorIndex}](<${beaconchainExplorer.replace('$validatorIndex', missedAttestation.validatorIndex)}>)\t-\tEpoch\t${missedAttestation.epoch}`
+      text = text + `\nValidator\t[${missedAttestation.validatorIndex}](<${BEACONCHAIN_EXPLORER.replace('$validatorIndex', missedAttestation.validatorIndex)}>)\t-\tEpoch\t${missedAttestation.epoch}`
       attestationsCount++
     }
     await discordAlerts.sendValidatorMessage('ATTESTATIONS-MISSED-DELAYED', hostname, null, text)
