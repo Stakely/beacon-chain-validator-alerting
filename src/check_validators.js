@@ -19,7 +19,7 @@ const EXEC_EXPLORER = process.env['EXEC_EXPLORER_' + NETWORK.toUpperCase()]
 
 const checkValidators = async () => {
   console.time('elapsed')
-  console.log(new Date(), 'Starting BeaconChain Validator Alerting for the network: ' + network)
+  console.log(new Date(), 'Starting BeaconChain Validator Alerting for the network: ' + NETWORK)
 
   // Convert all the public keys to indexes if there is any left
   await convertPublicKeysToIndexes()
@@ -28,7 +28,7 @@ const checkValidators = async () => {
   await checkBeaconchainData()
 
   // Check sync comitees (data not available in prater)
-  if (network !== 'prater')  await checkSyncCommittees()
+  if (NETWORK !== 'prater')  await checkSyncCommittees()
 
   // Check blocks
   await checkBlocks()
@@ -43,7 +43,7 @@ const checkValidators = async () => {
 const convertPublicKeysToIndexes = async () => {
   // Get a random sample of 70 saved validators without index
   // We do not fetch all the validators here since requests are limited
-  const savedValidators = await db.query('SELECT public_key FROM beacon_chain_validators_monitoring WHERE network = ? AND validator_index IS NULL ORDER BY RAND() LIMIT 70', network)
+  const savedValidators = await db.query('SELECT public_key FROM beacon_chain_validators_monitoring WHERE network = ? AND validator_index IS NULL ORDER BY RAND() LIMIT 70', NETWORK)
   // Iterate validators in groups of 70 instead of 100 since the url is too large using public keys
   const savedValidatorsChunks = arrayToChunks(savedValidators, 70)
   for (const savedValidatorsChunk of savedValidatorsChunks) {
@@ -80,7 +80,7 @@ const convertPublicKeysToIndexes = async () => {
 
 const checkBeaconchainData = async () => {
   // Get all the saved validator data randomly
-  const savedValidators = await db.query('SELECT validator_index, server_hostname, balance, status, slashed, slashed FROM beacon_chain_validators_monitoring WHERE network = ? AND validator_index IS NOT NULL ORDER BY RAND()', network)
+  const savedValidators = await db.query('SELECT validator_index, server_hostname, balance, status, slashed, slashed FROM beacon_chain_validators_monitoring WHERE network = ? AND validator_index IS NOT NULL ORDER BY RAND()', NETWORK)
 
   // The maximum number of validators per request is 100
   const savedValidatorsChunks = arrayToChunks(savedValidators, 100)
@@ -159,7 +159,7 @@ const checkBeaconchainData = async () => {
 
 const checkSyncCommittees = async () => {
   // Get all the saved validators
-  const savedValidators = await db.query('SELECT validator_index, server_hostname, last_epoch_checked FROM beacon_chain_validators_monitoring WHERE network = ? AND validator_index IS NOT NULL', network)
+  const savedValidators = await db.query('SELECT validator_index, server_hostname, last_epoch_checked FROM beacon_chain_validators_monitoring WHERE network = ? AND validator_index IS NOT NULL', NETWORK)
 
   const beaconchainUrlLatest = BEACONCHAIN_VALIDATOR_SYNC_COMMITTEES.replace('$endpoint', BEACONCHAIN_ENDPOINT) + 'latest'
   const res = await fetch(beaconchainUrlLatest, {
@@ -218,7 +218,7 @@ const checkSyncCommittees = async () => {
 
 const checkBlocks = async () => {
   // Get all the saved validator data randomly
-  const savedValidators = await db.query('SELECT validator_index, last_epoch_checked, server_hostname FROM beacon_chain_validators_monitoring WHERE network = ? AND validator_index IS NOT NULL ORDER BY RAND()', network)
+  const savedValidators = await db.query('SELECT validator_index, last_epoch_checked, server_hostname FROM beacon_chain_validators_monitoring WHERE network = ? AND validator_index IS NOT NULL ORDER BY RAND()', NETWORK)
 
   // Get the last epoch to discard non-finalized data
   const beaconchainUrl = BEACONCHAIN_VALIDATOR_EPOCH.replace('$endpoint', BEACONCHAIN_ENDPOINT).replace('$epoch', 'latest')
@@ -290,7 +290,7 @@ Graffiti: ${validatorData.graffiti_text}`
 
 const checkAttestations = async () => {
   // Get all the saved validator data randomly
-  const savedValidators = await db.query('SELECT validator_index, last_epoch_checked, server_hostname FROM beacon_chain_validators_monitoring WHERE network = ? AND validator_index IS NOT NULL ORDER BY RAND()', network)
+  const savedValidators = await db.query('SELECT validator_index, last_epoch_checked, server_hostname FROM beacon_chain_validators_monitoring WHERE network = ? AND validator_index IS NOT NULL ORDER BY RAND()', NETWORK)
 
   // Extract all the data first and then send an aggregate message by hostname
   const aggregatedMissedAttestations = {}
