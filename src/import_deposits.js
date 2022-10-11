@@ -9,7 +9,7 @@ const importPublicKeys = async (depositFile, serverHostname) => {
   const depositData = JSON.parse(rawDepositData)
 
   // Get the beacon chain network from the first element of the array
-  const network = depositData[0].eth2_network_name
+  const network = depositData[0].eth2_network_name || depositData[0].network_name
 
   // Extract just the public keys
   const publicKeys = depositData.map((key) => key.pubkey)
