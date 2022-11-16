@@ -279,7 +279,7 @@ Graffiti: ${validatorData.graffiti_text}`
           await discordAlerts.sendValidatorMessage('BLOCK-MISSED', savedValidatorData.server_hostname, null, blockInfo)
         } else if (validatorData.exec_transactions_count === 0) {
           await discordAlerts.sendValidatorMessage('BLOCK-EMPTY', savedValidatorData.server_hostname, null, blockInfo)
-        } else {
+        } else if (process.env.NOTIFY_SUCCESSFUL_BLOCKS === 'true'){
           await discordAlerts.sendValidatorMessage('BLOCK-PROPOSED', savedValidatorData.server_hostname, null, blockInfo)
         }
       }
