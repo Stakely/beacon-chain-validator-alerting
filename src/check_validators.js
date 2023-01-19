@@ -14,7 +14,9 @@ const BEACONCHAIN_VALIDATOR_SYNC_COMMITTEES = '$endpoint/api/v1/sync_committee/'
 const BEACONCHAIN_VALIDATOR_EPOCH = '$endpoint/api/v1/epoch/$epoch'
 const BEACONCHAIN_ENDPOINT = process.env['BEACONCHAIN_ENDPOINT_' + NETWORK.toUpperCase()]
 const BEACONCHAIN_EXPLORER = BEACONCHAIN_ENDPOINT + '/validator/$validatorIndex#attestations'
-const BEACONCHAIN_EXPLORER_SLOT = BEACONCHAIN_ENDPOINT + '/slot/$slot'
+let  BEACONCHAIN_EXPLORER_SLOT = BEACONCHAIN_ENDPOINT + '/slot/$slot'
+// The Gnosis explorer uses a different url for slots
+if (NETWORK === 'gnosis') BEACONCHAIN_EXPLORER_SLOT = BEACONCHAIN_ENDPOINT + '/block/$slot'
 const EXEC_EXPLORER = process.env['EXEC_EXPLORER_' + NETWORK.toUpperCase()]
 
 const checkValidators = async () => {
