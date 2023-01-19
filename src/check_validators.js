@@ -283,7 +283,6 @@ const checkBlocks = async () => {
           const executionData = await res.json()
           blockReward = Number(executionData.data[0].producerReward) / 1e18
           feeRecipient = executionData.data[0].feeRecipient
-          console.log(`DETECTED BLOCK ${validatorData.exec_block_number}, blockReward: ${blockReward}, feeRecipient: ${feeRecipient}`)
         }
 
         // Block information in a string
@@ -295,7 +294,7 @@ Exec fee recipient: ${validatorData.exec_fee_recipient}
 Exec gas limit: ${validatorData.exec_gas_limit}
 Exec gas used: ${validatorData.exec_gas_used}
 Exec transactions count: ${validatorData.exec_transactions_count}
-Exec blockreward: ${blockReward}
+Exec blockreward: ${blockReward} ETH
 Exec feerecipient: ${feeRecipient}
 Graffiti: ${validatorData.graffiti_text}`
 
