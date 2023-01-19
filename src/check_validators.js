@@ -14,7 +14,10 @@ const BEACONCHAIN_VALIDATOR_SYNC_COMMITTEES = '$endpoint/api/v1/sync_committee/'
 const BEACONCHAIN_VALIDATOR_EPOCH = '$endpoint/api/v1/epoch/$epoch'
 const BEACONCHAIN_ENDPOINT = process.env['BEACONCHAIN_ENDPOINT_' + NETWORK.toUpperCase()]
 const BEACONCHAIN_EXPLORER = BEACONCHAIN_ENDPOINT + '/validator/$validatorIndex#attestations'
-const BEACONCHAIN_EXPLORER_SLOT = BEACONCHAIN_ENDPOINT + '/slot/$slot'
+let  BEACONCHAIN_EXPLORER_SLOT = BEACONCHAIN_ENDPOINT + '/slot/$slot'
+// The Gnosis explorer uses an old endpoint for slots
+if (NETWORK === 'gnosis') BEACONCHAIN_EXPLORER_SLOT = BEACONCHAIN_ENDPOINT + '/block/$slot'
+const BEACONCHAIN_EXECUTION = '$endpoint/api/v1/execution/block/$block'
 const EXEC_EXPLORER = process.env['EXEC_EXPLORER_' + NETWORK.toUpperCase()]
 
 const checkValidators = async () => {
@@ -266,6 +269,23 @@ const checkBlocks = async () => {
     for (const validatorData of beaconchainData) {
       const savedValidatorData = savedValidators.find(validator => validator.validator_index === validatorData.proposer)
       if (validatorData.epoch < latestEpoch && validatorData.epoch > savedValidatorData.last_epoch_checked) {
+        let blockReward, feeRecipient
+        // The Gnosis beaconchain API does not offer this feature
+        if (NETWORK !== 'gnosis') {
+          // Get execution block information
+          const beaconchainUrl = BEACONCHAIN_EXECUTION.replace('$endpoint', BEACONCHAIN_ENDPOINT).replace('$block', validatorData.exec_block_number)
+          // Perform a request to the Beaconchain API
+          const res = await fetch(beaconchainUrl, {
+            headers: {
+              apikey: process.env.BEACONCHAIN_API_KEY
+            }
+          })
+          const executionData = await res.json()
+          blockReward = Number(executionData.data[0].producerReward) / 1e18
+          feeRecipient = executionData.data[0].feeRecipient
+        }
+
+        // Block information in a string
         const blockInfo = `Validator: [${validatorData.proposer}](<${BEACONCHAIN_EXPLORER.replace('$validatorIndex', validatorData.proposer)}>)
 Slot: [${validatorData.slot}](<${BEACONCHAIN_EXPLORER_SLOT.replace('$slot', validatorData.slot)}>)
 Epoch: ${validatorData.epoch}
@@ -274,12 +294,18 @@ Exec fee recipient: ${validatorData.exec_fee_recipient}
 Exec gas limit: ${validatorData.exec_gas_limit}
 Exec gas used: ${validatorData.exec_gas_used}
 Exec transactions count: ${validatorData.exec_transactions_count}
+Exec blockreward: ${blockReward} ETH
+Exec feerecipient: ${feeRecipient}
 Graffiti: ${validatorData.graffiti_text}`
+
+        // Only nofify in these cases
         if (validatorData.status !== '1') {
           await discordAlerts.sendValidatorMessage('BLOCK-MISSED', savedValidatorData.server_hostname, null, blockInfo)
         } else if (validatorData.exec_transactions_count === 0) {
           await discordAlerts.sendValidatorMessage('BLOCK-EMPTY', savedValidatorData.server_hostname, null, blockInfo)
         } else if (process.env.NOTIFY_SUCCESSFUL_BLOCKS === 'true'){
+          await discordAlerts.sendValidatorMessage('BLOCK-PROPOSED', savedValidatorData.server_hostname, null, blockInfo)
+        } else if (blockReward > Number(process.env.NOTIFY_LARGE_BLOCKS_THRESHOLD)) {
           await discordAlerts.sendValidatorMessage('BLOCK-PROPOSED', savedValidatorData.server_hostname, null, blockInfo)
         }
       }
