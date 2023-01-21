@@ -281,8 +281,11 @@ const checkBlocks = async () => {
             }
           })
           const executionData = await res.json()
-          blockReward = Number(executionData.data[0].producerReward) / 1e18
-          feeRecipient = executionData.data[0].feeRecipient
+          // When there is no execution data like an empty block
+          if (executionData.data[0]) {
+            blockReward = Number(executionData.data[0].producerReward) / 1e18
+            feeRecipient = executionData.data[0].feeRecipient
+          }
         }
 
         // Block information in a string
