@@ -26,19 +26,15 @@ const checkValidators = async () => {
 
   // Convert all the public keys to indexes if there is any left
   await convertPublicKeysToIndexes()
-  await new Promise(r => setTimeout(r, 2000))
 
   // Check Beaconchain data
   await checkBeaconchainData()
-  await new Promise(r => setTimeout(r, 2000))
 
   // Check sync comitees (data not available in prater)
   if (NETWORK !== 'prater')  await checkSyncCommittees()
-  await new Promise(r => setTimeout(r, 2000))
 
   // Check blocks
   await checkBlocks()
-  await new Promise(r => setTimeout(r, 2000))
 
   // Check attestations
   await checkAttestations()
