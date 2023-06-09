@@ -140,7 +140,7 @@ const checkBeaconchainData = async () => {
     
       // Check for large balance decrease. Missed sync committee duties should trigger this
        if (validatorData.balance < savedValidatorData.balance - 40000 && savedValidatorData.balance && savedValidatorData.status !== 'pending') {
-        await discordAlerts.sendValidatorMessage('BALANCE-DECREASING', savedValidatorData.server_hostname, validatorData.validatorindex, savedValidatorData.balance / 1e9, validatorData.balance / 1e9)
+        //await discordAlerts.sendValidatorMessage('BALANCE-DECREASING', savedValidatorData.server_hostname, validatorData.validatorindex, savedValidatorData.balance / 1e9, validatorData.balance / 1e9)
       }
       // Check slash changes if the saved data is not null
       if (validatorData.slashed !== savedValidatorData.slashed && savedValidatorData.slashed !== null) {
