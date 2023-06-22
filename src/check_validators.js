@@ -102,7 +102,7 @@ const checkBeaconchainData = async () => {
       })
       beaconchainData = await res.json()
     } catch (error) {
-      console.error('Beaconchain API error. URL', beaconchainUrl, 'response', JSON.stringify(res))
+      console.error('Beaconchain API error. URL', beaconchainUrl, 'response', JSON.stringify(res), 'Error:', error)
       await discordAlerts.sendMessage('BEACONCHAIN-API-ERROR', JSON.stringify(res, null, 2))
       continue
     }
