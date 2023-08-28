@@ -1,8 +1,8 @@
 const { WebhookClient } = require('discord.js')
 
-const sendValidatorMessage = async (alertType, serverHostname, validatorIndex, oldData, newData) => {
+const sendValidatorMessage = async (alertType, protocol, vcName, validatorIndex, oldData, newData) => {
   // Log error message in the console
-  console.log(alertType, serverHostname, validatorIndex, oldData, newData)
+  console.log(alertType, protocol, vcName, validatorIndex, oldData, newData)
 
   // Create the Beaconchain direct link to the validator
   const network = process.argv[2]
@@ -12,12 +12,12 @@ const sendValidatorMessage = async (alertType, serverHostname, validatorIndex, o
   const title = `**${alertType}**`
   let description
   if (newData) {
-    description = `**Server hostname:** ${serverHostname}\n**Network:** ${network}\n${oldData} 🡺 ${newData}\n[${validatorIndex}](<${beaconchainUrl}>)`
+    description = `**VC name:** ${vcName}\n**Protocol:** ${protocol}\n**Network:** ${network}\n${oldData} 🡺 ${newData}\n[${validatorIndex}](<${beaconchainUrl}>)`
   } else {
     if (validatorIndex) {
-      description = `**Server hostname:** ${serverHostname}\n**Network:** ${network}\n${oldData}\n[${validatorIndex}](<${beaconchainUrl}>)`
+      description = `**VC name:** ${vcName}\n**Protocol:** ${protocol}\n**Network:** ${network}\n${oldData}\n[${validatorIndex}](<${beaconchainUrl}>)`
     } else {
-      description = `**Server hostname:** ${serverHostname}\n**Network:** ${network}\n${oldData}`
+      description = `**VC name:** ${vcName}\n**Protocol:** ${protocol}\n**Network:** ${network}\n${oldData}`
     }    
   }
 

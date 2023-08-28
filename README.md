@@ -27,7 +27,8 @@ CREATE TABLE `beacon_chain_validators_monitoring` (
   `slashed` tinyint(1) DEFAULT NULL,
   `status` varchar(32) CHARACTER SET utf8mb4 COLLATE utf8mb4_unicode_ci DEFAULT NULL,
   `last_epoch_checked` int UNSIGNED DEFAULT NULL,
-  `server_hostname` varchar(100) COLLATE utf8mb4_unicode_ci DEFAULT NULL,
+  `vc_name` varchar(100) COLLATE utf8mb4_unicode_ci DEFAULT NULL,
+  `protocol` varchar(100) COLLATE utf8mb4_unicode_ci NOT NULL,
   `created_at` timestamp NOT NULL DEFAULT CURRENT_TIMESTAMP,
   `updated_at` timestamp NOT NULL DEFAULT CURRENT_TIMESTAMP ON UPDATE CURRENT_TIMESTAMP
 ) ENGINE=InnoDB DEFAULT CHARSET=utf8mb4 COLLATE=utf8mb4_unicode_ci;
