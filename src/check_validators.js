@@ -83,7 +83,7 @@ const convertPublicKeysToIndexes = async () => {
 
 const checkBeaconchainData = async () => {
   // Get all the saved validator data randomly
-  const savedValidators = await db.query('SELECT validator_index, protocol, vc_name, balance, status, slashed, slashed FROM beacon_chain_validators_monitoring WHERE network = ? AND validator_index IS NOT NULL ORDER BY RAND()', NETWORK)
+  const savedValidators = await db.query('SELECT validator_index, protocol, is_alert_active, vc_name, balance, status, slashed, slashed FROM beacon_chain_validators_monitoring WHERE network = ? AND validator_index IS NOT NULL ORDER BY RAND()', NETWORK)
 
   // The maximum number of validators per request is 100
   const savedValidatorsChunks = arrayToChunks(savedValidators, 100)
@@ -137,11 +137,11 @@ const checkBeaconchainData = async () => {
     
       // Check for large balance decrease. Missed sync committee duties should trigger this
        if (validatorData.balance < savedValidatorData.balance - 40000 && savedValidatorData.balance && savedValidatorData.status !== 'pending') {
-        //await discordAlerts.sendValidatorMessage('BALANCE-DECREASING', savedValidatorData.protocol, savedValidatorData.vc_name, validatorData.validatorindex, savedValidatorData.balance / 1e9, validatorData.balance / 1e9)
+        //await discordAlerts.sendValidatorMessage('BALANCE-DECREASING', savedValidatorData.protocol, savedValidatorData.is_alert_active savedValidatorData.vc_name, validatorData.validatorindex, savedValidatorData.balance / 1e9, validatorData.balance / 1e9)
       }
       // Check slash changes if the saved data is not null
       if (validatorData.slashed !== savedValidatorData.slashed && savedValidatorData.slashed !== null) {
-        await discordAlerts.sendValidatorMessage('SLASH-CHANGE', savedValidatorData.protocol, savedValidatorData.vc_name, validatorData.validatorindex, savedValidatorData.slashed, validatorData.slashed)
+        await discordAlerts.sendValidatorMessage('SLASH-CHANGE', savedValidatorData.protocol, savedValidatorData.is_alert_active, savedValidatorData.vc_name, validatorData.validatorindex, savedValidatorData.slashed, validatorData.slashed)
       }
       // Check status changes even if the saved data is null (validator starts validating)
       if (validatorData.status !== savedValidatorData.status) {
@@ -149,7 +149,7 @@ const checkBeaconchainData = async () => {
         if ((savedValidatorData.status === 'active_offline' && validatorData.status === 'active_online') || (savedValidatorData.status === 'active_online' && validatorData.status === 'active_offline')) {
           // Spam
         } else {
-          await discordAlerts.sendValidatorMessage('STATUS-CHANGE', savedValidatorData.protocol, savedValidatorData.vc_name, validatorData.validatorindex, savedValidatorData.status, validatorData.status)
+          await discordAlerts.sendValidatorMessage('STATUS-CHANGE', savedValidatorData.protocol, savedValidatorData.is_alert_active, savedValidatorData.vc_name, validatorData.validatorindex, savedValidatorData.status, validatorData.status)
         }
       }
 
@@ -163,7 +163,7 @@ const checkBeaconchainData = async () => {
 
 const checkSyncCommittees = async () => {
   // Get all the saved validators
-  const savedValidators = await db.query('SELECT validator_index, protocol, vc_name, last_epoch_checked FROM beacon_chain_validators_monitoring WHERE network = ? AND validator_index IS NOT NULL', NETWORK)
+  const savedValidators = await db.query('SELECT validator_index, protocol, is_alert_active, vc_name, last_epoch_checked FROM beacon_chain_validators_monitoring WHERE network = ? AND validator_index IS NOT NULL', NETWORK)
 
   const beaconchainUrlLatest = BEACONCHAIN_VALIDATOR_SYNC_COMMITTEES.replace('$endpoint', BEACONCHAIN_ENDPOINT) + 'latest'
   const res = await fetch(beaconchainUrlLatest, {
@@ -184,7 +184,7 @@ const checkSyncCommittees = async () => {
     for (const savedValidator of savedValidators) {
       if (latestValidator === savedValidator.validator_index) {
         if (savedValidator.last_epoch_checked < beaconchainDataLatest.data.start_epoch) {
-          await discordAlerts.sendValidatorMessage('SYNC-COMMITTEE', savedValidator.protocol, savedValidator.vc_name, latestValidator,
+          await discordAlerts.sendValidatorMessage('SYNC-COMMITTEE', savedValidator.protocol, savedValidator.is_alert_active, savedValidator.vc_name, latestValidator,
             `Validator in **current** sync commitee.\n Start epoch: ${beaconchainDataLatest.data.start_epoch}, end epoch: ${beaconchainDataLatest.data.end_epoch}, period: ${beaconchainDataLatest.data.period}`)
         }
       }
@@ -211,7 +211,7 @@ const checkSyncCommittees = async () => {
       if (nextValidator === savedValidator.validator_index) {
         // We use latest here since it is the start of the check window
         if (savedValidator.last_epoch_checked < beaconchainDataLatest.data.start_epoch) {
-          await discordAlerts.sendValidatorMessage('SYNC-COMMITTEE', savedValidator.protocol, savedValidator.vc_name, nextValidator,
+          await discordAlerts.sendValidatorMessage('SYNC-COMMITTEE', savedValidator.protocol, savedValidator.is_alert_active, savedValidator.vc_name, nextValidator,
             `Validator in **next** sync commitee.\nStart epoch: ${beaconchainDataNext.data.start_epoch}, end epoch: ${beaconchainDataNext.data.end_epoch}, period: ${beaconchainDataNext.data.period}`)
         }
       }
@@ -222,7 +222,7 @@ const checkSyncCommittees = async () => {
 
 const checkBlocks = async () => {
   // Get all the saved validator data randomly
-  const savedValidators = await db.query('SELECT validator_index, last_epoch_checked, protocol, vc_name FROM beacon_chain_validators_monitoring WHERE network = ? AND validator_index IS NOT NULL ORDER BY RAND()', NETWORK)
+  const savedValidators = await db.query('SELECT validator_index, last_epoch_checked, protocol, is_alert_active, vc_name FROM beacon_chain_validators_monitoring WHERE network = ? AND validator_index IS NOT NULL ORDER BY RAND()', NETWORK)
 
   // Get the last epoch to discard non-finalized data
   const beaconchainUrl = BEACONCHAIN_VALIDATOR_EPOCH.replace('$endpoint', BEACONCHAIN_ENDPOINT).replace('$epoch', 'latest')
@@ -304,13 +304,13 @@ Graffiti: ${validatorData.graffiti_text}`
 
         // Only nofify in these cases
         if (validatorData.status !== '1') {
-          await discordAlerts.sendValidatorMessage('BLOCK-MISSED', savedValidatorData.protocol, savedValidatorData.vc_name, null, blockInfo)
+          await discordAlerts.sendValidatorMessage('BLOCK-MISSED', savedValidatorData.protocol, savedValidatorData.is_alert_active, savedValidatorData.vc_name, null, blockInfo)
         } else if (validatorData.exec_transactions_count === 0) {
-          await discordAlerts.sendValidatorMessage('BLOCK-EMPTY', savedValidatorData.protocol, savedValidatorData.vc_name, null, blockInfo)
+          await discordAlerts.sendValidatorMessage('BLOCK-EMPTY', savedValidatorData.protocol, savedValidatorData.is_alert_active, savedValidatorData.vc_name, null, blockInfo)
         } else if (process.env.NOTIFY_SUCCESSFUL_BLOCKS === 'true'){
-          await discordAlerts.sendValidatorMessage('BLOCK-PROPOSED', savedValidatorData.protocol, savedValidatorData.vc_name, null, blockInfo)
+          await discordAlerts.sendValidatorMessage('BLOCK-PROPOSED', savedValidatorData.protocol, savedValidatorData.is_alert_active, savedValidatorData.vc_name, null, blockInfo)
         } else if (blockReward > Number(process.env.NOTIFY_LARGE_BLOCKS_THRESHOLD)) {
-          await discordAlerts.sendValidatorMessage('BLOCK-PROPOSED', savedValidatorData.protocol, savedValidatorData.vc_name, null, blockInfo)
+          await discordAlerts.sendValidatorMessage('BLOCK-PROPOSED', savedValidatorData.protocol, savedValidatorData.is_alert_active, savedValidatorData.vc_name, null, blockInfo)
         }
       }
     }
@@ -394,7 +394,7 @@ const checkAttestations = async () => {
       text = text + `\nValidator\t[${missedAttestation.validatorIndex}](<${BEACONCHAIN_EXPLORER.replace('$validatorIndex', missedAttestation.validatorIndex)}>)\t-\tEpoch\t${missedAttestation.epoch}`
       attestationsCount++
     }
-    await discordAlerts.sendValidatorMessage('ATTESTATIONS-MISSED-DELAYED', '-', vcName, null, text)
+    await discordAlerts.sendValidatorMessage('ATTESTATIONS-MISSED-DELAYED', '-', true, vcName, null, text) // TODO
   }
   console.log('Attestations check done. ', savedValidators.length, 'validators checked')
 }

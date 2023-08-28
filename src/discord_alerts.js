@@ -1,6 +1,6 @@
 const { WebhookClient } = require('discord.js')
 
-const sendValidatorMessage = async (alertType, protocol, vcName, validatorIndex, oldData, newData) => {
+const sendValidatorMessage = async (alertType, protocol, isAlertActive, vcName, validatorIndex, oldData, newData) => {
   // Log error message in the console
   console.log(alertType, protocol, vcName, validatorIndex, oldData, newData)
 
@@ -39,17 +39,19 @@ const sendValidatorMessage = async (alertType, protocol, vcName, validatorIndex,
     color = '636264' // Gray
   }
 
-  const webhookClient = new WebhookClient({ url: getDiscordWebhook(network) })
-  webhookClient.send({
-    username: 'Validator Monitoring Bot',
-    embeds: [
-      {
-        title: title,
-        description: description,
-        color: color
-      }
-    ]
-  })
+  if (isAlertActive) {
+    const webhookClient = new WebhookClient({ url: getDiscordWebhook(network) })
+    webhookClient.send({
+      username: 'Validator Monitoring Bot',
+      embeds: [
+        {
+          title: title,
+          description: description,
+          color: color
+        }
+      ]
+    })
+  }
 
   // Sleep 1 second to avoid rate limitting
   await new Promise(resolve => setTimeout(resolve, 2000))

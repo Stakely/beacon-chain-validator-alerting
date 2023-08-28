@@ -14,33 +14,21 @@ Tool developed and maintained by [Stakely.io](https://stakely.io), a professiona
 - An accesible MySQL server with the following schema:
 
 ```
-SET SQL_MODE = "NO_AUTO_VALUE_ON_ZERO";
-START TRANSACTION;
-SET time_zone = "+00:00";
-
 CREATE TABLE `beacon_chain_validators_monitoring` (
   `beacon_chain_validator_monitoring_id` int UNSIGNED NOT NULL,
-  `public_key` varchar(96) CHARACTER SET utf8mb4 COLLATE utf8mb4_unicode_ci NOT NULL,
+  `public_key` varchar(96) COLLATE utf8mb4_unicode_ci NOT NULL,
   `validator_index` int UNSIGNED DEFAULT NULL,
   `network` varchar(32) COLLATE utf8mb4_unicode_ci NOT NULL,
+  `protocol` varchar(30) COLLATE utf8mb4_unicode_ci NOT NULL,
   `balance` bigint DEFAULT NULL,
+  `is_alert_active` tinyint(1) NOT NULL DEFAULT '1',
   `slashed` tinyint(1) DEFAULT NULL,
-  `status` varchar(32) CHARACTER SET utf8mb4 COLLATE utf8mb4_unicode_ci DEFAULT NULL,
+  `status` varchar(32) COLLATE utf8mb4_unicode_ci DEFAULT NULL,
   `last_epoch_checked` int UNSIGNED DEFAULT NULL,
-  `vc_name` varchar(100) COLLATE utf8mb4_unicode_ci DEFAULT NULL,
-  `protocol` varchar(100) COLLATE utf8mb4_unicode_ci NOT NULL,
+  `vc_location` varchar(100) COLLATE utf8mb4_unicode_ci DEFAULT NULL,
   `created_at` timestamp NOT NULL DEFAULT CURRENT_TIMESTAMP,
   `updated_at` timestamp NOT NULL DEFAULT CURRENT_TIMESTAMP ON UPDATE CURRENT_TIMESTAMP
 ) ENGINE=InnoDB DEFAULT CHARSET=utf8mb4 COLLATE=utf8mb4_unicode_ci;
-
-ALTER TABLE `beacon_chain_validators_monitoring`
-  ADD PRIMARY KEY (`beacon_chain_validator_monitoring_id`),
-  ADD UNIQUE KEY `beacon_chain_validators_monitoring_network_public_key_unique` (`network`,`public_key`),
-  ADD UNIQUE KEY `bcvmv_validator_index_network_unique` (`validator_index`,`network`);
-
-ALTER TABLE `beacon_chain_validators_monitoring`
-  MODIFY `beacon_chain_validator_monitoring_id` int UNSIGNED NOT NULL AUTO_INCREMENT;
-COMMIT;
 ```
 
 <br>
