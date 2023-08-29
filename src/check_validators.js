@@ -320,7 +320,7 @@ Graffiti: ${validatorData.graffiti_text}`
 
 const checkAttestations = async () => {
   // Get all the saved validator data randomly
-  const savedValidators = await db.query('SELECT validator_index, last_epoch_checked, protocol, vc_name FROM beacon_chain_validators_monitoring WHERE network = ? AND validator_index IS NOT NULL ORDER BY RAND()', NETWORK)
+  const savedValidators = await db.query('SELECT validator_index, last_epoch_checked, protocol, vc_name FROM beacon_chain_validators_monitoring WHERE network = ? AND is_alert_active = 1 AND validator_index IS NOT NULL ORDER BY RAND()', NETWORK)
 
   // Extract all the data first and then send an aggregate message by hostname
   const aggregatedMissedAttestations = {}
@@ -394,7 +394,7 @@ const checkAttestations = async () => {
       text = text + `\nValidator\t[${missedAttestation.validatorIndex}](<${BEACONCHAIN_EXPLORER.replace('$validatorIndex', missedAttestation.validatorIndex)}>)\t-\tEpoch\t${missedAttestation.epoch}`
       attestationsCount++
     }
-    await discordAlerts.sendValidatorMessage('ATTESTATIONS-MISSED-DELAYED', '-', true, vcName, null, text) // TODO
+    await discordAlerts.sendValidatorMessage('ATTESTATIONS-MISSED-DELAYED', '-', true, vcName, null, text)
   }
   console.log('Attestations check done. ', savedValidators.length, 'validators checked')
 }
