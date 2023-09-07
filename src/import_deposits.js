@@ -3,7 +3,7 @@ require('dotenv').config({ path: path.join(__dirname, '../.env') })
 const fs = require('fs')
 const db = require('./db')
 
-const importPublicKeys = async (depositFile, protocol, vcName) => {
+const importPublicKeys = async (depositFile, protocol, vclocation) => {
   // Read deposit array from file
   const rawDepositData = fs.readFileSync(depositFile)
   const depositData = JSON.parse(rawDepositData)
@@ -25,8 +25,8 @@ const importPublicKeys = async (depositFile, protocol, vcName) => {
 
   // Save the new public keys with its Beaconchain endpoint in the db
   for (const newPublicKey of newPublicKeys) {
-    await db.query('INSERT INTO beacon_chain_validators_monitoring (public_key, network, protocol, vc_name) VALUES(?,?,?,?)',
-      [newPublicKey, network, protocol, vcName])
+    await db.query('INSERT INTO beacon_chain_validators_monitoring (public_key, network, protocol, vc_location) VALUES(?,?,?,?)',
+      [newPublicKey, network, protocol, vclocation])
   }
   console.log('Process finished.', newPublicKeys.length, 'keys imported from', network)
 }
@@ -35,5 +35,5 @@ const importPublicKeys = async (depositFile, protocol, vcName) => {
 if (process.argv[2] && process.argv[3]) {
   importPublicKeys(process.argv[2], process.argv[3], process.argv[4])
 } else {
-  console.error('Example usage: node src/import_deposits.js deposits/deposit_data-xxx.json my-protocol-name my-vc-name')
+  console.error('Example usage: node src/import_deposits.js deposits/deposit_data-xxx.json my-protocol-name my-vc-identifier')
 }
