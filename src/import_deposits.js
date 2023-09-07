@@ -3,7 +3,7 @@ require('dotenv').config({ path: path.join(__dirname, '../.env') })
 const fs = require('fs')
 const db = require('./db')
 
-const importPublicKeys = async (depositFile, protocol, vclocation) => {
+const importPublicKeys = async (depositFile, protocol, vcLocation) => {
   // Read deposit array from file
   const rawDepositData = fs.readFileSync(depositFile)
   const depositData = JSON.parse(rawDepositData)
@@ -26,7 +26,7 @@ const importPublicKeys = async (depositFile, protocol, vclocation) => {
   // Save the new public keys with its Beaconchain endpoint in the db
   for (const newPublicKey of newPublicKeys) {
     await db.query('INSERT INTO beacon_chain_validators_monitoring (public_key, network, protocol, vc_location) VALUES(?,?,?,?)',
-      [newPublicKey, network, protocol, vclocation])
+      [newPublicKey, network, protocol, vcLocation])
   }
   console.log('Process finished.', newPublicKeys.length, 'keys imported from', network)
 }
