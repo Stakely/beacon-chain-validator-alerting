@@ -371,6 +371,7 @@ const checkAttestations = async () => {
         aggregatedMissedAttestations[savedValidatorData.vc_location].push({
           validatorIndex: validatorData.validatorindex,
           epoch: validatorData.epoch,
+          protocol: validatorData.protocol
         })
       }
     }
@@ -385,15 +386,18 @@ const checkAttestations = async () => {
   for (const vcLocation in aggregatedMissedAttestations) {
     let text = `**Total attestations:** ${aggregatedMissedAttestations[vcLocation].length}`
     let attestationsCount = 0
+    const protocols = []
     for (const missedAttestation of aggregatedMissedAttestations[vcLocation]) {
       // Limit up to 10 attestations per message
       if (attestationsCount >= 10) {
         text = text + `\n**Truncated**`
         break
       }
+      protocols.push(aggregatedMissedAttestations[vcLocation].protocol)
       text = text + `\nValidator\t[${missedAttestation.validatorIndex}](<${BEACONCHAIN_EXPLORER.replace('$validatorIndex', missedAttestation.validatorIndex)}>)\t-\tEpoch\t${missedAttestation.epoch}`
       attestationsCount++
     }
+    console.log('protocols', protocols)
     await discordAlerts.sendValidatorMessage('ATTESTATIONS-MISSED-DELAYED', '-', true, vcLocation, null, text)
   }
   console.log('Attestations check done. ', savedValidators.length, 'validators checked')
