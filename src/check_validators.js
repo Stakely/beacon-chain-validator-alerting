@@ -386,14 +386,18 @@ const checkAttestations = async () => {
   for (const vcLocation in aggregatedMissedAttestations) {
     let text = `**Total attestations:** ${aggregatedMissedAttestations[vcLocation].length}`
     let attestationsCount = 0
+
     const protocols = []
     for (const missedAttestation of aggregatedMissedAttestations[vcLocation]) {
+      // Get affected protocols grouped by hostname
+      protocols.push(aggregatedMissedAttestations[vcLocation].protocol)
+      console.log(aggregatedMissedAttestations[vcLocation].protocol)
+
       // Limit up to 10 attestations per message
       if (attestationsCount >= 10) {
         text = text + `\n**Truncated**`
         break
       }
-      protocols.push(aggregatedMissedAttestations[vcLocation].protocol)
       text = text + `\nValidator\t[${missedAttestation.validatorIndex}](<${BEACONCHAIN_EXPLORER.replace('$validatorIndex', missedAttestation.validatorIndex)}>)\t-\tEpoch\t${missedAttestation.epoch}`
       attestationsCount++
     }
