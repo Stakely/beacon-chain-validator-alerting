@@ -371,7 +371,7 @@ const checkAttestations = async () => {
         aggregatedMissedAttestations[savedValidatorData.vc_location].push({
           validatorIndex: validatorData.validatorindex,
           epoch: validatorData.epoch,
-          protocol: validatorData.protocol
+          protocol: savedValidatorData.protocol
         })
       }
     }
