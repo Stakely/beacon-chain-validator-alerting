@@ -368,11 +368,21 @@ const checkAttestations = async () => {
         if (!aggregatedMissedAttestations[savedValidatorData.vc_location]) {
           aggregatedMissedAttestations[savedValidatorData.vc_location] = []
         }
+
+        // Get the protocol of that validator
+        let protocol
+        for (const savedValidator of savedValidatorData) {
+          if (savedValidator.validator_index === validatorData.validatorindex) {
+            protocol = savedValidator.protocol
+            console.log('protocol', protocol)
+          }
+        }
+
         // Save the missed attestations to send the data aggregated by hostname
         aggregatedMissedAttestations[savedValidatorData.vc_location].push({
           validatorIndex: validatorData.validatorindex,
           epoch: validatorData.epoch,
-          protocol: savedValidatorData.protocol
+          protocol: protocol
         })
       }
     }
