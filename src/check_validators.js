@@ -363,14 +363,10 @@ const checkAttestations = async () => {
 
     for (const validatorData of beaconchainData) {
       const savedValidatorData = savedValidators.find(validator => validator.validator_index === validatorData.validatorindex)
-      console.log('savedValidatorData', savedValidatorData)
       if (validatorData.epoch <= lastEpoch && validatorData.status !== 1 && validatorData.epoch > savedValidatorData.last_epoch_checked) {
         if (!aggregatedMissedAttestations[savedValidatorData.vc_location]) {
           aggregatedMissedAttestations[savedValidatorData.vc_location] = []
         }
-
-        // Get the protocol of that validator
-        console.log('savedValidatorData.protocol', savedValidatorData.protocol)
 
         // Save the missed attestations to send the data aggregated by hostname
         aggregatedMissedAttestations[savedValidatorData.vc_location].push({
@@ -395,8 +391,8 @@ const checkAttestations = async () => {
     const protocols = []
     for (const missedAttestation of aggregatedMissedAttestations[vcLocation]) {
       // Get affected protocols grouped by hostname
-      protocols.push(aggregatedMissedAttestations[vcLocation].protocol)
-      console.log(aggregatedMissedAttestations[vcLocation].protocol)
+      protocols.push(missedAttestation.protocol)
+      console.log('xxmissedAttestation', missedAttestation)
 
       // Limit up to 10 attestations per message
       if (attestationsCount >= 10) {
