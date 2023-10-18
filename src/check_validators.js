@@ -363,6 +363,7 @@ const checkAttestations = async () => {
 
     for (const validatorData of beaconchainData) {
       const savedValidatorData = savedValidators.find(validator => validator.validator_index === validatorData.validatorindex)
+      console.log('savedValidatorData', savedValidatorData)
       if (validatorData.epoch <= lastEpoch && validatorData.status !== 1 && validatorData.epoch > savedValidatorData.last_epoch_checked) {
         if (!aggregatedMissedAttestations[savedValidatorData.vc_location]) {
           aggregatedMissedAttestations[savedValidatorData.vc_location] = []
