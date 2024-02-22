@@ -83,7 +83,7 @@ const convertPublicKeysToIndexes = async () => {
 
 const checkBeaconchainData = async () => {
   // Get all the saved validator data randomly
-  const savedValidators = await db.query('SELECT validator_index, protocol, is_alert_active, vc_location, balance, status, slashed, slashed FROM beacon_chain_validators_monitoring WHERE network = ? AND validator_index IS NOT NULL ORDER BY RAND()', NETWORK)
+  const savedValidators = await db.query('SELECT validator_index, protocol, is_alert_active, vc_location, balance, status, slashed, slashed FROM beacon_chain_validators_monitoring WHERE network = ? AND validator_index IS NOT NULL AND is_alert_active = 1 ORDER BY RAND()', NETWORK)
 
   // The maximum number of validators per request is 100
   const savedValidatorsChunks = arrayToChunks(savedValidators, 100)
@@ -163,7 +163,7 @@ const checkBeaconchainData = async () => {
 
 const checkSyncCommittees = async () => {
   // Get all the saved validators
-  const savedValidators = await db.query('SELECT validator_index, protocol, is_alert_active, vc_location, last_epoch_checked FROM beacon_chain_validators_monitoring WHERE network = ? AND validator_index IS NOT NULL', NETWORK)
+  const savedValidators = await db.query('SELECT validator_index, protocol, is_alert_active, vc_location, last_epoch_checked FROM beacon_chain_validators_monitoring WHERE network = ? AND validator_index IS NOT NULL AND is_alert_active = 1', NETWORK)
 
   const beaconchainUrlLatest = BEACONCHAIN_VALIDATOR_SYNC_COMMITTEES.replace('$endpoint', BEACONCHAIN_ENDPOINT) + 'latest'
   const res = await fetch(beaconchainUrlLatest, {
@@ -222,7 +222,7 @@ const checkSyncCommittees = async () => {
 
 const checkBlocks = async () => {
   // Get all the saved validator data randomly
-  const savedValidators = await db.query('SELECT validator_index, last_epoch_checked, protocol, is_alert_active, vc_location FROM beacon_chain_validators_monitoring WHERE network = ? AND validator_index IS NOT NULL ORDER BY RAND()', NETWORK)
+  const savedValidators = await db.query('SELECT validator_index, last_epoch_checked, protocol, is_alert_active, vc_location FROM beacon_chain_validators_monitoring WHERE network = ? AND validator_index IS NOT NULL AND is_alert_active = 1 ORDER BY RAND()', NETWORK)
 
   // Get the last epoch to discard non-finalized data
   const beaconchainUrl = BEACONCHAIN_VALIDATOR_EPOCH.replace('$endpoint', BEACONCHAIN_ENDPOINT).replace('$epoch', 'latest')
