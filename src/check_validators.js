@@ -46,7 +46,7 @@ const checkValidators = async () => {
 const convertPublicKeysToIndexes = async () => {
   // Get a random sample of 70 saved validators without index
   // We do not fetch all the validators here since requests are limited
-  const savedValidators = await db.query('SELECT public_key FROM beacon_chain_validators_monitoring WHERE network = ? AND validator_index IS NULL ORDER BY RAND() LIMIT 70', NETWORK)
+  const savedValidators = await db.query('SELECT public_key FROM beacon_chain_validators_monitoring WHERE network = ? AND validator_index IS NULL AND is_alert_active = 1 ORDER BY RAND() LIMIT 70', NETWORK)
   // Iterate validators in groups of 70 instead of 100 since the url is too large using public keys
   const savedValidatorsChunks = arrayToChunks(savedValidators, 70)
   for (const savedValidatorsChunk of savedValidatorsChunks) {
