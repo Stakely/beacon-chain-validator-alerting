@@ -41,6 +41,7 @@ const checkValidators = async () => {
 
   console.log(new Date(), 'Finished')
   console.timeEnd('elapsed')
+  process.exit()
 }
 
 const convertPublicKeysToIndexes = async () => {

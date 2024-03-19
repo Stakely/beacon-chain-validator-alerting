@@ -23,12 +23,14 @@ const sendValidatorMessage = async (alertType, protocol, isAlertActive, vcLocati
 
   // Select a color depending on the importance
   let color
-  if (alertType === 'ATTESTATIONS-MISSED-DELAYED' || alertType === 'BLOCK-MISSED' || alertType === 'BLOCK-EMPTY' || alertType === 'BALANCE-DECREASING') {
-    color = 'ff9966' // Orange
+  if (alertType === 'BLOCK-MISSED' || alertType === 'BLOCK-EMPTY' || alertType === 'BALANCE-DECREASING') {
+    color = 'ff681e' // Dark orange
   } else if (alertType === 'BLOCK-PROPOSED') {
     color = '99cc33' // Green
   } else if (alertType === 'SLASH-CHANGE') {
     color = 'cc3300' // Red
+  } else if (alertType === 'ATTESTATIONS-MISSED-DELAYED') {
+    color = 'ffcc00' // Yellow
   } else if (alertType === 'STATUS-CHANGE') {
     if (newData === 'active_online') {
       color = '99cc33' // Green
