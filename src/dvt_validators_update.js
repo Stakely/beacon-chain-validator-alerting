@@ -26,31 +26,54 @@ const fetchValidatorsByOperator = async(operatorId, network, page, itemsPerPage)
 }
 
 const updateDvtValidators = async (dvt, network, validators) => {
+  let counter = {
+    inserted: 0,
+    updated: 0,
+    deleted: 0
+  };
+  console.log('Validators obtained:', validators.length);
   // add new validators or update existing ones
   for (const validator of validators) {
     const existingValidator = await db.query('SELECT * FROM beacon_chain_validators_monitoring WHERE public_key = ? AND network = ? AND dvt_software = ?', [validator.public_key, network, dvt]);
 
     if (existingValidator.length === 0) {
-      await db.query('INSERT INTO beacon_chain_validators_monitoring (public_key, network, dvt_software, vc_location, validator_share_ratio) VALUES(?,?,?,?,?)',
-        [validator.public_key, network, dvt, validator.vc_location, validator.operatorPercentage]);
+      try {
+        console.log('> Inserting new validator: ', validator.public_key);
+
+        await db.query('INSERT INTO beacon_chain_validators_monitoring (public_key, network, dvt_software, vc_location, validator_share_ratio, protocol) VALUES(?,?,?,?,?,?)',
+          [validator.public_key, network, dvt, validator.vc_location, validator.operatorPercentage,  validator.vc_location.includes('lido') ? 'lido' : 'ssv']);
+        counter.inserted++;
+      } catch (error) {
+        console.log('Error inserting validator:', error);
+        await db.query('UPDATE beacon_chain_validators_monitoring SET vc_location = ?, validator_share_ratio = ?, dvt_software = ? WHERE public_key = ? AND network = ?',
+          [validator.vc_location, validator.operatorPercentage, dvt, validator.public_key, network]);
+        counter.updated++;
+      }
+
     } else {
+      console.log('> Updating existing validator: ', validator.public_key);
       await db.query('UPDATE beacon_chain_validators_monitoring SET vc_location = ?, validator_share_ratio = ? WHERE public_key = ? AND network = ? AND dvt_software = ?',
         [validator.vc_location, validator.operatorPercentage, validator.public_key, network, dvt]);
+      counter.updated++;
     }
   }
 
   // remove existing validators that are not in the new list
-  const pubkeys = pubkeysArray.map((validator) => validator.public_key).join(',');
-  const placeholders = pubkeys.map(() => '?').join(', ');
+  const pubkeysArray = validators.map((validator) => validator.public_key);
+  const placeholders = pubkeysArray.map(() => '?').join(', ');
   const deleteQuery = `
-    DELETE FROM your_table_name
+    DELETE FROM beacon_chain_validators_monitoring
     WHERE network = ?
       AND dvt_software = ?
       AND public_key NOT IN (${placeholders});
   `;
   const deleteResults = await db.query(deleteQuery, [network, dvt, ...pubkeysArray]);
   console.log('Deleted Rows affected:', deleteResults.affectedRows);
+  counter.deleted = deleteResults.affectedRows;
 
+  console.log('=====================================');
+  console.log('Inserted:', counter.inserted, 'Updated:', counter.updated, 'Deleted:', counter.deleted);
+  console.log('=====================================');
 }
 
 const getSsvValidators = async (network) => {
