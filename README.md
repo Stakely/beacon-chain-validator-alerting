@@ -68,3 +68,22 @@ crontab -e
 If you have many validators you may need to reduce the check period in order to not hit the Beaconchain API rate limit.
 
 An alternative is to pay for the [Beaconchain Paid API](https://beaconcha.in/pricing).
+
+### DVT validators update
+
+There is a script to load dvt dinamyc validators into DB. As the validator set may be changing due to DVT; we built this script that will ensure having the last set in our db. It will insert new validators, update existing ones with last metada and delte the vals that have left the set.
+
+* Right now it only works with **SSV**
+
+You can test if the script works properly with
+```
+node src/dvt_validators_update.js <dvt_software> <network>
+# Eg. node src/dvt_validators_update.js ssv mainnet
+```
+
+Configure the Crontab to execute the check_validators.js script periodically. Proposed crontab is every 6 hours
+
+```
+crontab -e
+0 */6 * * * node /your/custom/path/beacon-chain-validator-alerting/src/dvt_validators_update.js ssv mainnet
+```
