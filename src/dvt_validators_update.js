@@ -101,10 +101,22 @@ const getSsvValidators = async (network) => {
   result;
   const uniqueArray = removeDuplicates(result);
 
-  const finalResult = uniqueArray.map(validator => {
+  const discardedValidators = [];
+  const filteredValidators = uniqueArray.filter(validator => {
+    const isValid = validator.is_deleted === false && validator.is_valid === true && validator.status === 'Active';
+    if (!isValid) {
+      discardedValidators.push(validator);
+    }
+    return isValid;
+  });
+
+  const finalResult = filteredValidators.map(validator => {
     const validatorWithMapping = calculateOperatorPercentage(validator, OPERATOR_IDS, mappingJson);
     return validatorWithMapping;
   });
+
+  console.log('Discarded validators:', discardedValidators.length);
+  console.log('Filtered validators:', filteredValidators.length);
 
   return finalResult;
 }
