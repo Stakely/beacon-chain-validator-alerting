@@ -144,7 +144,7 @@ function calculateOperatorPercentage(validator, givenOperators, mappingJson) {
 
         // Add a comma and a space if it's not the last item
         if (index < matchingOperators.length - 1) {
-            vc_location += ', ';
+            vc_location += process.env.SEPARATOR_CHAR || ', ';
         }
     }
   });
