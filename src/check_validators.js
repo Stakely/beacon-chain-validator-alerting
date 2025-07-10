@@ -76,7 +76,7 @@ const convertPublicKeysToIndexes = async () => {
 
     // Update validator index
     for (const beaconchainValidator of beaconchainData) {
-      await db.query('UPDATE beacon_chain_validators_monitoring SET validator_index = ? WHERE public_key = ?', [beaconchainValidator.validatorindex, beaconchainValidator.pubkey.replace('0x','')])
+      await db.query('UPDATE beacon_chain_validators_monitoring SET validator_index = ? WHERE public_key = ? AND network = ?', [beaconchainValidator.validatorindex, beaconchainValidator.pubkey.replace('0x',''), NETWORK])
     }
   }
   console.log('Validator indexes check done.', savedValidators.length, 'validators checked')
@@ -155,8 +155,8 @@ const checkBeaconchainData = async () => {
       }
 
       // Update validator data
-      await db.query('UPDATE beacon_chain_validators_monitoring SET balance = ?, slashed = ?, status = ? WHERE validator_index = ?',
-        [validatorData.balance, validatorData.slashed, validatorData.status, validatorData.validatorindex])
+      await db.query('UPDATE beacon_chain_validators_monitoring SET balance = ?, slashed = ?, status = ? WHERE validator_index = ? AND network = ?',
+        [validatorData.balance, validatorData.slashed, validatorData.status, validatorData.validatorindex, NETWORK])
     }
   }
   console.log('Beaconchain data check done.', savedValidators.length, 'validators checked')
@@ -380,7 +380,7 @@ const checkAttestations = async () => {
     // Update all the last checked finalized epoch for all the validators
     const indexesChunk = savedValidatorsChunk.map((key) => key.validator_index)
     for (const indexChunk of indexesChunk) {
-      await db.query('UPDATE beacon_chain_validators_monitoring SET last_epoch_checked = ? WHERE validator_index = ?', [lastEpoch, indexChunk])
+      await db.query('UPDATE beacon_chain_validators_monitoring SET last_epoch_checked = ? WHERE validator_index = ? AND network = ?', [lastEpoch, indexChunk, NETWORK])
     }
   }
 
