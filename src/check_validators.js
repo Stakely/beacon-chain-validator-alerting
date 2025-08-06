@@ -3,26 +3,222 @@ require('dotenv').config({ path: path.join(__dirname, '../.env') })
 const db = require('./db')
 const fetch = require('node-fetch')
 const discordAlerts = require('./discord_alerts')
+const goteth = require('./goteth')
 
 // Beaconchain API Docs: https://beaconcha.in/api/v1/docs/index.html
 
 const NETWORK = process.argv[2]
+const DATA_SOURCE_MODE = process.env.DATA_SOURCE_MODE || 'beaconchain'
+
+
+// API endpoint templates for beaconchain
 const BEACONCHAIN_VALIDATOR_INFO = '$endpoint/api/v1/validator/$validators'
 const BEACONCHAIN_VALIDATOR_ATTESTATIONS = '$endpoint/api/v1/validator/$validators/attestations'
 const BEACONCHAIN_VALIDATOR_BLOCKS = '$endpoint/api/v1/validator/$validators/proposals'
 const BEACONCHAIN_VALIDATOR_SYNC_COMMITTEES = '$endpoint/api/v1/sync_committee/'
 const BEACONCHAIN_VALIDATOR_EPOCH = '$endpoint/api/v1/epoch/$epoch'
+const BEACONCHAIN_EXECUTION = '$endpoint/api/v1/execution/block/$block'
+
 const BEACONCHAIN_ENDPOINT = process.env['BEACONCHAIN_ENDPOINT_' + NETWORK.toUpperCase()]
+const BEACONCHAIN_API_KEY = process.env.BEACONCHAIN_API_KEY
+
+// Status normalization functions for goteth equivalents
+function normalizeStatus(status) {
+  // Handle goteth status equivalents
+  if (status === 'in_activation_queue' || status === 0) {
+    return 'pending'
+  }
+  if (status === 'active' || status === 1) {
+    return 'active'
+  }
+  return status
+}
+
+function isEquivalentStatus(status1, status2, f_exit_epoch) {
+  const normalized1 = normalizeStatus(status1)
+  const normalized2 = normalizeStatus(status2)
+  
+  // Determine the effective status1 based on f_exit_epoch
+  let effectiveStatus1 = status1
+  if (normalized1 === 'active') {
+    if (f_exit_epoch !== '18446744073709551615' && f_exit_epoch !== 18446744073709551615) {
+      effectiveStatus1 = 'exiting_online'
+    } else {
+      effectiveStatus1 = 'active_online'
+    }
+  }
+  
+  // Check if both are equivalent to active (active, active_online, active_offline, exiting_online)
+  if ((effectiveStatus1 === 'active_online' || effectiveStatus1 === 'active_offline' || effectiveStatus1 === 'exiting_online' || normalized1 === 'active') &&
+      (normalized2 === 'active' || status2 === 'active_online' || status2 === 'active_offline' || status2 === 'exiting_online')) {
+    return true
+  }
+  
+  return normalizeStatus(effectiveStatus1) === normalized2
+}
+
+function isPendingStatus(status) {
+  return normalizeStatus(status) === 'pending'
+}
+
+function isActiveTransition(oldStatus, newStatus) {
+  // Check for active_offline <-> active_online transitions (considered spam)
+  const isOldActiveOffline = (oldStatus === 'active_offline' || (normalizeStatus(oldStatus) === 'active'))
+  const isNewActiveOnline = (newStatus === 'active_online' || (normalizeStatus(newStatus) === 'active'))
+  const isOldActiveOnline = (oldStatus === 'active_online' || (normalizeStatus(oldStatus) === 'active'))
+  const isNewActiveOffline = (newStatus === 'active_offline' || (normalizeStatus(newStatus) === 'active'))
+  
+  return (isOldActiveOffline && isNewActiveOnline) || (isOldActiveOnline && isNewActiveOffline)
+}
+
+// Data fetching functions - abstraction layer for different data sources
+const dataFetcher = {
+  // Beaconchain fetch-based implementation
+  async fetchValidatorInfo(validators) {
+    if (DATA_SOURCE_MODE === 'goteth') {
+      return await gotethFetcher.getValidatorInfo(validators)
+    } else {
+      const url = BEACONCHAIN_VALIDATOR_INFO.replace('$endpoint', BEACONCHAIN_ENDPOINT).replace('$validators', validators.join(','))
+      const res = await fetch(url, { headers: { apikey: BEACONCHAIN_API_KEY } })
+      return await res.json()
+    }
+  },
+
+  async fetchValidatorAttestations(validators) {
+    if (DATA_SOURCE_MODE === 'goteth') {
+      return await gotethFetcher.getValidatorAttestations(validators)
+    } else {
+      const url = BEACONCHAIN_VALIDATOR_ATTESTATIONS.replace('$endpoint', BEACONCHAIN_ENDPOINT).replace('$validators', validators.join(','))
+      const res = await fetch(url, { headers: { apikey: BEACONCHAIN_API_KEY } })
+      return await res.json()
+    }
+  },
+
+  async fetchValidatorBlocks(validators, indexesWithLastEpochCheckedArray, epoch) {
+    if (DATA_SOURCE_MODE === 'goteth') {
+      // return await gotethFetcher.getValidatorBlocks(validators, indexesWithLastEpochCheckedArray, epoch)
+      return await gotethFetcher.getValidatorBlocksFromEpoch( indexesWithLastEpochCheckedArray)
+    } else {
+      const url = BEACONCHAIN_VALIDATOR_BLOCKS.replace('$endpoint', BEACONCHAIN_ENDPOINT).replace('$validators', validators.join(','))
+      const res = await fetch(url, { headers: { apikey: BEACONCHAIN_API_KEY } })
+      return await res.json()
+    }
+  },
+
+  async fetchSyncCommittee(period) {
+    if (DATA_SOURCE_MODE === 'goteth') {
+      return await gotethFetcher.getSyncCommittee(period)
+    } else {
+      const url = BEACONCHAIN_VALIDATOR_SYNC_COMMITTEES.replace('$endpoint', BEACONCHAIN_ENDPOINT) + period
+      const res = await fetch(url, { headers: { apikey: BEACONCHAIN_API_KEY } })
+      return await res.json()
+    }
+  },
+
+  async fetchEpoch(epoch) {
+    if (DATA_SOURCE_MODE === 'goteth') {
+      return await gotethFetcher.getEpoch(epoch)
+    } else {
+      const url = BEACONCHAIN_VALIDATOR_EPOCH.replace('$endpoint', BEACONCHAIN_ENDPOINT).replace('$epoch', epoch)
+      const res = await fetch(url, { headers: { apikey: BEACONCHAIN_API_KEY } })
+      return await res.json()
+    }
+  },
+
+  async fetchExecutionBlock(blockNumber) {
+    if (DATA_SOURCE_MODE === 'goteth') {
+      return await gotethFetcher.getExecutionBlock(blockNumber)
+    } else {
+      const url = BEACONCHAIN_EXECUTION.replace('$endpoint', BEACONCHAIN_ENDPOINT).replace('$block', blockNumber)
+      const res = await fetch(url, { headers: { apikey: BEACONCHAIN_API_KEY } })
+      return await res.json()
+    }
+  },
+
+  async fetchMissingSyncCommittee(indexesWithLastEpochCheckedArray) {
+    if (DATA_SOURCE_MODE === 'goteth') {
+      return await gotethFetcher.getMissingSyncCommittee(indexesWithLastEpochCheckedArray)
+    } else {
+      console.log('fetchMissingSyncCommittee not implemented for beaconchain')
+      return []
+    }
+  },
+
+  async fetchValidatorConsolidationEvents(validatorPubkeys) {
+    if (DATA_SOURCE_MODE === 'goteth') {
+      return await gotethFetcher.getValidatorConsolidationEvents(validatorPubkeys)
+    } else {
+      console.log('fetchValidatorConsolidationEvents not implemented for beaconchain')
+      return []
+    }
+  },
+}
+
+// Goteth function-based implementation
+const gotethFetcher = {
+  async getValidatorInfo(validators) {
+    return await goteth.getValidatorInfo(NETWORK, validators)
+  },
+
+  async getValidatorAttestations(validators) {
+    return await goteth.getValidatorAttestations(NETWORK, validators)
+  },
+
+  async getValidatorBlocks(validators, indexesWithLastEpochCheckedArray, epoch) {
+    return await goteth.getValidatorBlocks(NETWORK, validators, indexesWithLastEpochCheckedArray, epoch)
+  },
+
+  async getValidatorBlocksFromEpoch(validatorEpochPairs) {
+    return await goteth.getValidatorBlocksFromEpoch(NETWORK, validatorEpochPairs)
+  },
+
+  async getSyncCommittee(period) {
+    return await goteth.getSyncCommittee(NETWORK, period)
+  },
+
+  async getEpoch(epoch) {
+    return await goteth.getEpoch(NETWORK, epoch)
+  },
+
+  async getExecutionBlock(blockNumber) {
+    return await goteth.getExecutionBlock(NETWORK, blockNumber)
+  },
+
+  async getMissingSyncCommittee(indexesWithLastEpochCheckedArray) {
+    return await goteth.getMissingSyncCommittee(NETWORK, indexesWithLastEpochCheckedArray)
+  },
+
+  async getValidatorConsolidationEvents(validatorPubkeys) {
+    return await goteth.getValidatorConsolidationEvents(NETWORK, validatorPubkeys)
+  }
+}
+
 const BEACONCHAIN_EXPLORER = BEACONCHAIN_ENDPOINT + '/validator/$validatorIndex#attestations'
-let  BEACONCHAIN_EXPLORER_SLOT = BEACONCHAIN_ENDPOINT + '/slot/$slot'
+let BEACONCHAIN_EXPLORER_SLOT = BEACONCHAIN_ENDPOINT + '/slot/$slot'
 // The Gnosis explorer uses an old endpoint for slots
 if (NETWORK === 'gnosis') BEACONCHAIN_EXPLORER_SLOT = BEACONCHAIN_ENDPOINT + '/block/$slot'
-const BEACONCHAIN_EXECUTION = '$endpoint/api/v1/execution/block/$block'
 const EXEC_EXPLORER = process.env['EXEC_EXPLORER_' + NETWORK.toUpperCase()]
 
 const checkValidators = async () => {
   console.time('elapsed')
   console.log(new Date(), 'Starting BeaconChain Validator Alerting for the network: ' + NETWORK)
+  console.log('Data source mode:', DATA_SOURCE_MODE)
+
+  // Get the last finalized epoch for all data source modes
+  let latestEpoch
+  try {
+    const epochData = await dataFetcher.fetchEpoch('latest')
+    if (!epochData.status || epochData.status !== 'OK') {
+      await discordAlerts.sendMessage('API-ERROR', JSON.stringify(epochData, null, 2))
+      return
+    }
+    latestEpoch = Number(epochData.data.epoch)
+    console.log('Latest finalized epoch:', latestEpoch)
+  } catch (error) {
+    console.error(`${DATA_SOURCE_MODE.toUpperCase()} epoch fetching error:`, error.message)
+    await discordAlerts.sendMessage('API-ERROR', error.message)
+    return
+  }
 
   // Convert all the public keys to indexes if there is any left
   await convertPublicKeysToIndexes()
@@ -31,13 +227,22 @@ const checkValidators = async () => {
   await checkBeaconchainData()
 
   // Check sync comitees (data not available in prater)
-  if (NETWORK !== 'prater')  await checkSyncCommittees()
+  if (DATA_SOURCE_MODE === 'beaconchain') await checkSyncCommittees()
+
+  // Check sync committee missed // only works with goteth
+  if (DATA_SOURCE_MODE === 'goteth') await checkSyncCommitteeMissed()
 
   // Check blocks
-  await checkBlocks()
+  await checkBlocks(latestEpoch)
 
   // Check attestations
   await checkAttestations()
+
+  // Check consolidation events // only works with goteth
+  if (DATA_SOURCE_MODE === 'goteth') await checkConsolidationEvents()
+
+  // Update last epoch checked for all validators
+  await updateLastEpochChecked(latestEpoch)
 
   console.log(new Date(), 'Finished')
   console.timeEnd('elapsed')
@@ -47,24 +252,18 @@ const checkValidators = async () => {
 const convertPublicKeysToIndexes = async () => {
   // Get a random sample of 70 saved validators without index
   // We do not fetch all the validators here since requests are limited
-  const savedValidators = await db.query('SELECT public_key FROM beacon_chain_validators_monitoring WHERE network = ? AND validator_index IS NULL AND is_alert_active = 1 ORDER BY RAND() LIMIT 70', NETWORK)
+  const savedValidators = await db.query('SELECT public_key FROM beacon_chain_validators_monitoring WHERE network = ? AND validator_index IS NULL AND is_alert_active = 1 ORDER BY RAND()', NETWORK)
   // Iterate validators in groups of 70 instead of 100 since the url is too large using public keys
-  const savedValidatorsChunks = arrayToChunks(savedValidators, 70)
+  const savedValidatorsChunks = arrayToChunks(savedValidators, 500)
   for (const savedValidatorsChunk of savedValidatorsChunks) {
     // Prepare the data to perform the request
-    const publicKeysChunkString = savedValidatorsChunk.map((key) => key.public_key).toString()
-    const beaconchainUrl = BEACONCHAIN_VALIDATOR_INFO.replace('$endpoint', BEACONCHAIN_ENDPOINT).replace('$validators', publicKeysChunkString)
-    // Perform the request to the Beaconchain API
-    const res = await fetch(beaconchainUrl, {
-      headers: {
-        apikey: process.env.BEACONCHAIN_API_KEY
-      }
-    })
-    let beaconchainData = await res.json()
-    beaconchainData = beaconchainData.data
+    const publicKeysArray = savedValidatorsChunk.map((key) => key.public_key)
+    // Perform the request through the abstraction layer
+    const response = await dataFetcher.fetchValidatorInfo(publicKeysArray)
+    let beaconchainData = response.data
 
     // If no results found
-    if (!beaconchainData) {
+    if (!beaconchainData || beaconchainData.length === 0) {
       console.log('Some validator indexes are not available on-chain')
       continue
     }
@@ -87,30 +286,25 @@ const checkBeaconchainData = async () => {
   const savedValidators = await db.query('SELECT validator_index, protocol, is_alert_active, vc_location, balance, status, slashed, slashed FROM beacon_chain_validators_monitoring WHERE network = ? AND validator_index IS NOT NULL AND is_alert_active = 1 ORDER BY RAND()', NETWORK)
 
   // The maximum number of validators per request is 100
-  const savedValidatorsChunks = arrayToChunks(savedValidators, 100)
+  const savedValidatorsChunks = arrayToChunks(savedValidators, 500)
   for (const savedValidatorsChunk of savedValidatorsChunks) {
     // Prepare the data to perform the request
-    const indexesChunkString = savedValidatorsChunk.map((key) => key.validator_index).toString()
-    const beaconchainUrl = BEACONCHAIN_VALIDATOR_INFO.replace('$endpoint', BEACONCHAIN_ENDPOINT).replace('$validators', indexesChunkString)
+    const indexesArray = savedValidatorsChunk.map((key) => key.validator_index)
 
-    // Perform a request to the Beaconchain API
-    let res, beaconchainData
+    // Perform a request through the abstraction layer
+    let beaconchainData
     try {
-      res = await fetch(beaconchainUrl, {
-        headers: {
-          apikey: process.env.BEACONCHAIN_API_KEY
-        }
-      })
-      beaconchainData = await res.json()
+      const response = await dataFetcher.fetchValidatorInfo(indexesArray)
+      beaconchainData = response
     } catch (error) {
-      console.error('Beaconchain API error. URL', beaconchainUrl, 'response', JSON.stringify(res), 'Error:', error)
-      await discordAlerts.sendMessage('BEACONCHAIN-API-ERROR', JSON.stringify(res, null, 2))
+      console.error(`${DATA_SOURCE_MODE.toUpperCase()} data fetching error:`, error.message)
+      await discordAlerts.sendMessage('API-ERROR', error.message)
       continue
     }
 
     // Handle failed requests
     if (!beaconchainData.status || beaconchainData.status !== 'OK') {
-      await discordAlerts.sendMessage('BEACONCHAIN-API-ERROR', JSON.stringify(beaconchainData, null, 2))
+      await discordAlerts.sendMessage('API-ERROR', JSON.stringify(beaconchainData, null, 2))
       continue
     }
     beaconchainData = beaconchainData.data
@@ -127,7 +321,7 @@ const checkBeaconchainData = async () => {
     // Iterate all validators returned in the response
     for (const validatorData of beaconchainData) {
       // Get saved validator data from the request we made previously from the db
-      const savedValidatorData = savedValidators.find(validator => validator.validator_index === validatorData.validatorindex)
+      const savedValidatorData = savedValidators.find(validator => validator.validator_index === Number(validatorData.validatorindex))
 
       // Convert slash data tinyint to boolean
       if (savedValidatorData.slashed === 0) {
@@ -137,7 +331,7 @@ const checkBeaconchainData = async () => {
       }
     
       // Check for large balance decrease. Missed sync committee duties should trigger this
-       if (validatorData.balance < savedValidatorData.balance - 40000 && savedValidatorData.balance && savedValidatorData.status !== 'pending') {
+       if (validatorData.balance < savedValidatorData.balance - 40000 && savedValidatorData.balance && !isPendingStatus(savedValidatorData.status)) {
         //await discordAlerts.sendValidatorMessage('BALANCE-DECREASING', savedValidatorData.protocol, savedValidatorData.is_alert_active savedValidatorData.vc_location, validatorData.validatorindex, savedValidatorData.balance / 1e9, validatorData.balance / 1e9)
       }
       // Check slash changes if the saved data is not null
@@ -145,9 +339,9 @@ const checkBeaconchainData = async () => {
         await discordAlerts.sendValidatorMessage('SLASH-CHANGE', savedValidatorData.protocol, savedValidatorData.is_alert_active, savedValidatorData.vc_location, validatorData.validatorindex, savedValidatorData.slashed, validatorData.slashed)
       }
       // Check status changes even if the saved data is null (validator starts validating)
-      if (validatorData.status !== savedValidatorData.status) {
+      if (!isEquivalentStatus(validatorData.status, savedValidatorData.status, validatorData.exit_epoch)) {
         // These changes are almost everytime false positives
-        if ((savedValidatorData.status === 'active_offline' && validatorData.status === 'active_online') || (savedValidatorData.status === 'active_online' && validatorData.status === 'active_offline')) {
+        if (isActiveTransition(savedValidatorData.status, validatorData.status)) {
           // Spam
         } else {
           await discordAlerts.sendValidatorMessage('STATUS-CHANGE', savedValidatorData.protocol, savedValidatorData.is_alert_active, savedValidatorData.vc_location, validatorData.validatorindex, savedValidatorData.status, validatorData.status)
@@ -156,27 +350,57 @@ const checkBeaconchainData = async () => {
 
       // Update validator data
       await db.query('UPDATE beacon_chain_validators_monitoring SET balance = ?, slashed = ?, status = ? WHERE validator_index = ? AND network = ?',
-        [validatorData.balance, validatorData.slashed, validatorData.status, validatorData.validatorindex, NETWORK])
+        [validatorData.balance, validatorData.slashed, validatorData.status, Number(validatorData.validatorindex), NETWORK])
     }
   }
   console.log('Beaconchain data check done.', savedValidators.length, 'validators checked')
+}
+
+const checkSyncCommitteeMissed = async () => {
+  // Get all the saved validator data randomly
+  const savedValidators = await db.query('SELECT validator_index, protocol, is_alert_active, last_epoch_checked, vc_location, balance, status, slashed FROM beacon_chain_validators_monitoring WHERE network = ? AND validator_index IS NOT NULL AND is_alert_active = 1 ORDER BY RAND()', NETWORK)
+  // The maximum number of validators per request is 100
+  const savedValidatorsChunks = arrayToChunks(savedValidators, 500)
+  for (const savedValidatorsChunk of savedValidatorsChunks) {
+    const indexesWithLastEpochCheckedArray = savedValidatorsChunk.map((key) => ({validator_index: key.validator_index, last_epoch_checked: key.last_epoch_checked}))
+    const validatorData = await dataFetcher.fetchMissingSyncCommittee(indexesWithLastEpochCheckedArray)
+
+    if (validatorData.data.length > 0) {
+
+      for (const validator of validatorData.data) {
+        const foundSavedValidator = savedValidatorsChunk.find(savedValidator => savedValidator.validator_index === Number(validator.validator_index))
+
+        if (!foundSavedValidator) {
+          console.log('Validator not found in saved validators', validator.validator_index)
+          await discordAlerts.sendMessage('API-ERROR', `checkSyncCommitteeMissed | Validator not found in saved validators : ${validator.validator_index}`)
+          continue
+        }
+        if (foundSavedValidator.last_epoch_checked < validator.epoch) {
+          await discordAlerts.sendValidatorMessage('SYNC-COMMITTEE-MISSED', foundSavedValidator.protocol, foundSavedValidator.is_alert_active, foundSavedValidator.vc_location, validator.validator_index, `Validator in epoch ${validator.epoch} Missed sync committee, with less than ${process.env.SYNC_COMMITTEE_PARTICIPATIONS_NUMBER_TARGET} sync committee with (${validator.sync_committee_participations_included}). participations included `)
+        } else {
+          console.log('Validator already checked in epoch | Should have been notified before', validator.epoch)
+        }
+      }
+    }
+  }
 }
 
 const checkSyncCommittees = async () => {
   // Get all the saved validators
   const savedValidators = await db.query('SELECT validator_index, protocol, is_alert_active, vc_location, last_epoch_checked FROM beacon_chain_validators_monitoring WHERE network = ? AND validator_index IS NOT NULL AND is_alert_active = 1', NETWORK)
 
-  const beaconchainUrlLatest = BEACONCHAIN_VALIDATOR_SYNC_COMMITTEES.replace('$endpoint', BEACONCHAIN_ENDPOINT) + 'latest'
-  const res = await fetch(beaconchainUrlLatest, {
-    headers: {
-      apikey: process.env.BEACONCHAIN_API_KEY
-    }
-  })
-  let beaconchainDataLatest = await res.json()
+  let beaconchainDataLatest
+  try {
+    beaconchainDataLatest = await dataFetcher.fetchSyncCommittee('latest')
+  } catch (error) {
+    console.error(`${DATA_SOURCE_MODE.toUpperCase()} sync committee fetching error:`, error.message)
+    await discordAlerts.sendMessage('API-ERROR', error.message)
+    return
+  }
 
   // Handle failed requests
   if (!beaconchainDataLatest.status || beaconchainDataLatest.status !== 'OK') {
-    await discordAlerts.sendMessage('BEACONCHAIN-API-ERROR', JSON.stringify(beaconchainDataLatest, null, 2))
+    await discordAlerts.sendMessage('API-ERROR', JSON.stringify(beaconchainDataLatest, null, 2))
   }
 
   // Checks if any validator is in the current sync committee
@@ -192,17 +416,18 @@ const checkSyncCommittees = async () => {
     }
   }
 
-  const beaconchainUrlNext = BEACONCHAIN_VALIDATOR_SYNC_COMMITTEES.replace('$endpoint', BEACONCHAIN_ENDPOINT) + 'next'
-  const resp = await fetch(beaconchainUrlNext, {
-    headers: {
-      apikey: process.env.BEACONCHAIN_API_KEY
-    }
-  })
-  let beaconchainDataNext = await resp.json()
+  let beaconchainDataNext
+  try {
+    beaconchainDataNext = await dataFetcher.fetchSyncCommittee('next')
+  } catch (error) {
+    console.error(`${DATA_SOURCE_MODE.toUpperCase()} sync committee (next) fetching error:`, error.message)
+    await discordAlerts.sendMessage('API-ERROR', error.message)
+    return
+  }
 
   // Handle failed requests
   if (!beaconchainDataNext.status || beaconchainDataNext.status !== 'OK') {
-    await discordAlerts.sendMessage('BEACONCHAIN-API-ERROR', JSON.stringify(beaconchainDataNext, null, 2))
+    await discordAlerts.sendMessage('API-ERROR', JSON.stringify(beaconchainDataNext, null, 2))
   }
 
   // Checks if any validator is in the next sync committee
@@ -221,38 +446,30 @@ const checkSyncCommittees = async () => {
   console.log('Sync committees check done. ', savedValidators.length, 'validators checked')
 }
 
-const checkBlocks = async () => {
+const checkBlocks = async (latestEpoch) => {
   // Get all the saved validator data randomly
   const savedValidators = await db.query('SELECT validator_index, last_epoch_checked, protocol, is_alert_active, vc_location FROM beacon_chain_validators_monitoring WHERE network = ? AND validator_index IS NOT NULL AND is_alert_active = 1 ORDER BY RAND()', NETWORK)
 
-  // Get the last epoch to discard non-finalized data
-  const beaconchainUrl = BEACONCHAIN_VALIDATOR_EPOCH.replace('$endpoint', BEACONCHAIN_ENDPOINT).replace('$epoch', 'latest')
-  const res = await fetch(beaconchainUrl, {
-    headers: {
-      apikey: process.env.BEACONCHAIN_API_KEY
-    }
-  })
-  let beaconchainData = await res.json()
-  const latestEpoch = beaconchainData.data.epoch
-
   // The maximum number of validators per request is 100
-  const savedValidatorsChunks = arrayToChunks(savedValidators, 100)
+  const savedValidatorsChunks = arrayToChunks(savedValidators, 500)
   for (const savedValidatorsChunk of savedValidatorsChunks) {
     // Prepare the data to perform the request
-    const indexesChunkString = savedValidatorsChunk.map((key) => key.validator_index).toString()
-    const beaconchainUrl = BEACONCHAIN_VALIDATOR_BLOCKS.replace('$endpoint', BEACONCHAIN_ENDPOINT).replace('$validators', indexesChunkString)
-
-    // Perform a request to the Beaconchain API
-    const res = await fetch(beaconchainUrl, {
-      headers: {
-        apikey: process.env.BEACONCHAIN_API_KEY
-      }
-    })
-    let beaconchainData = await res.json()
+    const indexesArray = savedValidatorsChunk.map((key) => key.validator_index)
+    const indexesWithLastEpochCheckedArray = savedValidatorsChunk.map((key) => ({validator_index: key.validator_index, last_epoch_checked: key.last_epoch_checked}))
+    // Perform a request through the abstraction layer
+    let beaconchainData
+    try {
+      const response = await dataFetcher.fetchValidatorBlocks(indexesArray, indexesWithLastEpochCheckedArray, latestEpoch -1)
+      beaconchainData = response
+    } catch (error) {
+      console.error(`${DATA_SOURCE_MODE.toUpperCase()} blocks fetching error:`, error.message)
+      await discordAlerts.sendMessage('API-ERROR', error.message)
+      continue
+    }
 
     // Handle failed requests
     if (!beaconchainData.status || beaconchainData.status !== 'OK') {
-      await discordAlerts.sendMessage('BEACONCHAIN-API-ERROR', JSON.stringify(beaconchainData, null, 2))
+      await discordAlerts.sendMessage('API-ERROR', JSON.stringify(beaconchainData, null, 2))
       continue
     }
     beaconchainData = beaconchainData.data
@@ -269,24 +486,21 @@ const checkBlocks = async () => {
 
     // Check block proposal issues from the last check to the latest justified epoch
     for (const validatorData of beaconchainData) {
-      const savedValidatorData = savedValidators.find(validator => validator.validator_index === validatorData.proposer)
+      const savedValidatorData = savedValidators.find(validator => validator.validator_index === Number(validatorData.proposer))
       if (validatorData.epoch < latestEpoch && validatorData.epoch > savedValidatorData.last_epoch_checked) {
         let blockReward, feeRecipient
         // The Gnosis beaconchain API does not offer this feature
         if (NETWORK !== 'gnosis') {
           // Get execution block information
-          const beaconchainUrl = BEACONCHAIN_EXECUTION.replace('$endpoint', BEACONCHAIN_ENDPOINT).replace('$block', validatorData.exec_block_number)
-          // Perform a request to the Beaconchain API
-          const res = await fetch(beaconchainUrl, {
-            headers: {
-              apikey: process.env.BEACONCHAIN_API_KEY
+          try {
+            const executionData = await dataFetcher.fetchExecutionBlock(validatorData.exec_block_number)
+            // When there is no execution data like an empty block
+            if (executionData.data[0]) {
+              blockReward = executionData?.data[0].producerReward ? Number(executionData.data[0].producerReward) / 1e18 : 'UNKNOWN'
+              feeRecipient = executionData.data[0].feeRecipient
             }
-          })
-          const executionData = await res.json()
-          // When there is no execution data like an empty block
-          if (executionData.data[0]) {
-            blockReward = Number(executionData.data[0].producerReward) / 1e18
-            feeRecipient = executionData.data[0].feeRecipient
+          } catch (error) {
+            console.error(`${DATA_SOURCE_MODE.toUpperCase()} execution block fetching error:`, error.message)
           }
         }
 
@@ -304,7 +518,7 @@ Exec feerecipient: ${feeRecipient}
 Graffiti: ${validatorData.graffiti_text}`
 
         // Only nofify in these cases
-        if (validatorData.status !== '1') {
+        if (String(validatorData.status) !== '1') {
           await discordAlerts.sendValidatorMessage('BLOCK-MISSED', savedValidatorData.protocol, savedValidatorData.is_alert_active, savedValidatorData.vc_location, null, blockInfo)
         } else if (validatorData.exec_transactions_count === 0) {
           await discordAlerts.sendValidatorMessage('BLOCK-EMPTY', savedValidatorData.protocol, savedValidatorData.is_alert_active, savedValidatorData.vc_location, null, blockInfo)
@@ -327,23 +541,25 @@ const checkAttestations = async () => {
   const aggregatedMissedAttestations = {}
 
   // The maximum number of validators per request is 100
-  const savedValidatorsChunks = arrayToChunks(savedValidators, 100)
+  const savedValidatorsChunks = arrayToChunks(savedValidators, 500)
   for (const savedValidatorsChunk of savedValidatorsChunks) {
     // Prepare the data to perform the request
-    const indexesChunkString = savedValidatorsChunk.map((key) => key.validator_index).toString()
-    const beaconchainUrl = BEACONCHAIN_VALIDATOR_ATTESTATIONS.replace('$endpoint', BEACONCHAIN_ENDPOINT).replace('$validators', indexesChunkString)
+    const indexesArray = savedValidatorsChunk.map((key) => key.validator_index)
 
-    // Perform a request to the Beaconchain API
-    const res = await fetch(beaconchainUrl, {
-      headers: {
-        apikey: process.env.BEACONCHAIN_API_KEY
-      }
-    })
-    let beaconchainData = await res.json()
+    // Perform a request through the abstraction layer
+    let beaconchainData
+    try {
+      const response = await dataFetcher.fetchValidatorAttestations(indexesArray)
+      beaconchainData = response
+    } catch (error) {
+      console.error(`${DATA_SOURCE_MODE.toUpperCase()} attestations fetching error:`, error.message)
+      await discordAlerts.sendMessage('API-ERROR', error.message)
+      continue
+    }
 
     // Handle failed requests
     if (!beaconchainData.status || beaconchainData.status !== 'OK') {
-      await discordAlerts.sendMessage('BEACONCHAIN-API-ERROR', JSON.stringify(beaconchainData, null, 2))
+      await discordAlerts.sendMessage('API-ERROR', JSON.stringify(beaconchainData, null, 2))
       continue
     }
     beaconchainData = beaconchainData.data
@@ -363,7 +579,12 @@ const checkAttestations = async () => {
     const lastEpoch = beaconchainData[0].epoch - 2
 
     for (const validatorData of beaconchainData) {
-      const savedValidatorData = savedValidators.find(validator => validator.validator_index === validatorData.validatorindex)
+      const savedValidatorData = savedValidators.find(validator => validator.validator_index === Number(validatorData.validatorindex))
+      if (!savedValidatorData) {
+        console.log('Validator not found in saved validators', validatorData.validatorindex)
+        // force the validator to be checked
+        // convertPublicKeysToIndexes
+      }
       if (validatorData.epoch <= lastEpoch && validatorData.status !== 1 && validatorData.epoch > savedValidatorData.last_epoch_checked) {
         if (!aggregatedMissedAttestations[savedValidatorData.vc_location]) {
           aggregatedMissedAttestations[savedValidatorData.vc_location] = []
@@ -377,10 +598,13 @@ const checkAttestations = async () => {
         })
       }
     }
-    // Update all the last checked finalized epoch for all the validators
-    const indexesChunk = savedValidatorsChunk.map((key) => key.validator_index)
-    for (const indexChunk of indexesChunk) {
-      await db.query('UPDATE beacon_chain_validators_monitoring SET last_epoch_checked = ? WHERE validator_index = ? AND network = ?', [lastEpoch, indexChunk, NETWORK])
+
+    if (DATA_SOURCE_MODE === 'beaconchain') {
+      // Update all the last checked finalized epoch for all the validators
+      const indexesChunk = savedValidatorsChunk.map((key) => key.validator_index)
+      for (const indexChunk of indexesChunk) {
+        await db.query('UPDATE beacon_chain_validators_monitoring SET last_epoch_checked = ? WHERE validator_index = ? AND network = ?', [lastEpoch, indexChunk, NETWORK])
+      }
     }
   }
 
@@ -407,6 +631,52 @@ const checkAttestations = async () => {
     await discordAlerts.sendValidatorMessage('ATTESTATIONS-MISSED-DELAYED', [...new Set(protocols)].join(', '), true, vcLocation, null, text)
   }
   console.log('Attestations check done. ', savedValidators.length, 'validators checked')
+}
+
+const checkConsolidationEvents = async () => {
+  // Get all the saved validator data randomly
+  const savedValidators = await db.query('SELECT validator_index, protocol, is_alert_active, last_epoch_checked, public_key, vc_location, balance, status, slashed FROM beacon_chain_validators_monitoring WHERE network = ? AND validator_index IS NOT NULL AND is_alert_active = 1 ORDER BY RAND()', NETWORK)
+  // The maximum number of validators per request is 100
+  const savedValidatorsChunks = arrayToChunks(savedValidators, 500)
+  for (const savedValidatorsChunk of savedValidatorsChunks) {
+    const validatorIndexes = savedValidatorsChunk.map((key) => key.validator_index)
+    const validatorPubkeys = savedValidatorsChunk.map((key) => key.public_key)
+
+    const validatorData = await dataFetcher.fetchValidatorConsolidationEvents(validatorPubkeys)
+
+    if (validatorData.data.length > 0) {
+
+      for (const validator of validatorData.data) {
+        const foundSavedValidator = savedValidatorsChunk.find(savedValidator => savedValidator.public_key === validator.source_pubkey || savedValidator.public_key === validator.target_pubkey)
+
+        if (!foundSavedValidator) {
+          console.log('Validator not found in saved validators', validator.validator_index)
+          await discordAlerts.sendMessage('API-ERROR', `checkSyncCommitteeMissed | Validator not found in saved validators : ${validator.validator_index}`)
+          continue
+        }
+        if (foundSavedValidator.last_epoch_checked < validator.epoch) {
+          await discordAlerts.sendValidatorMessage('CONSOLIDATION-EVENT', foundSavedValidator.protocol, foundSavedValidator.is_alert_active, foundSavedValidator.vc_location, validator.validator_index, foundSavedValidator, `Validator in epoch ${validator.epoch} had a consolidation event\nSource: ${validator.source_pubkey}\nTarget: ${validator.target_pubkey}\nResult: ${validator.result} [result_ref](https://github.com/migalabs/goteth/blob/master/docs/tables.md#reference-for-f_result-1)`)
+        } else {
+          console.log('Validator already checked in epoch | Should have been notified before', validator.epoch)
+        }
+      }
+    }
+  }
+}
+
+const updateLastEpochChecked = async (latestEpoch) => {
+  // Get all the saved validator data
+  const savedValidators = await db.query('SELECT validator_index FROM beacon_chain_validators_monitoring WHERE network = ? AND validator_index IS NOT NULL AND is_alert_active = 1', NETWORK)
+  
+  console.log(`Updating last_epoch_checked to ${latestEpoch} for ${savedValidators.length} validators`)
+  
+  // Update lastEpoch for all validators
+  const indexes = savedValidators.map((key) => key.validator_index)
+  for (const index of indexes) {
+    await db.query('UPDATE beacon_chain_validators_monitoring SET last_epoch_checked = ? WHERE validator_index = ? AND network = ?', [latestEpoch, index, NETWORK])
+  }
+  
+  console.log(`Successfully updated last_epoch_checked for ${savedValidators.length} validators`)
 }
 
 // Divide an array into smaller chunks with a max chunk size
