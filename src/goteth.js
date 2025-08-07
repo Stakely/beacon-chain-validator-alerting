@@ -589,7 +589,7 @@ const goteth = {
         FROM t_validator_rewards_summary
         WHERE (${conditions})
         AND f_sync_committee_participations_included < ${targetSyncCommitteeParticipationsNumber} AND f_in_sync_committee = true 
-        ORDER BY f_epoch DESC
+        ORDER BY f_epoch ASC
       `
 
       const resultSet = await clickhouse.query({

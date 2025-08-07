@@ -665,18 +665,13 @@ const checkConsolidationEvents = async () => {
 }
 
 const updateLastEpochChecked = async (latestEpoch) => {
-  // Get all the saved validator data
-  const savedValidators = await db.query('SELECT validator_index FROM beacon_chain_validators_monitoring WHERE network = ? AND validator_index IS NOT NULL AND is_alert_active = 1', NETWORK)
+  // Update last_epoch_checked for all active validators in a single query
+  const result = await db.query(
+    'UPDATE beacon_chain_validators_monitoring SET last_epoch_checked = ? WHERE network = ? AND validator_index IS NOT NULL AND is_alert_active = 1',
+    [latestEpoch, NETWORK]
+  )
   
-  console.log(`Updating last_epoch_checked to ${latestEpoch} for ${savedValidators.length} validators`)
-  
-  // Update lastEpoch for all validators
-  const indexes = savedValidators.map((key) => key.validator_index)
-  for (const index of indexes) {
-    await db.query('UPDATE beacon_chain_validators_monitoring SET last_epoch_checked = ? WHERE validator_index = ? AND network = ?', [latestEpoch, index, NETWORK])
-  }
-  
-  console.log(`Successfully updated last_epoch_checked for ${savedValidators.length} validators`)
+  console.log(`Successfully updated last_epoch_checked to ${latestEpoch} for ${result.affectedRows || result.changes || 'unknown number of'} validators`)
 }
 
 // Divide an array into smaller chunks with a max chunk size
