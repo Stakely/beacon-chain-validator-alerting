@@ -211,7 +211,7 @@ const goteth = {
       
       const query = `
         SELECT 
-          tvls.f_status as status,
+          CASE WHEN bm.f_proposed = 1 THEN '1' ELSE '0' END as status,
           bm.f_proposer_index as proposer,
           bm.f_slot as slot,
           bm.f_epoch as epoch,
@@ -234,6 +234,61 @@ const goteth = {
       
       const data = await resultSet.json()
       
+      // Check for orphaned blocks (f_el_block_number = "0") and fetch from t_orphans table
+      const orphanedBlocks = data.filter(row => row.exec_block_number === "0")
+
+      if (orphanedBlocks.length > 0) {
+        console.log(`Found ${orphanedBlocks.length} orphaned blocks, fetching from t_orphans table`)
+
+        // Create conditions for orphaned blocks query
+        const orphanConditions = orphanedBlocks.map(block =>
+          `(o.f_proposer_index = ${block.proposer} AND o.f_slot = ${block.slot})`
+        ).join(' OR ')
+
+        const orphanQuery = `
+          SELECT
+            2 as status,
+            o.f_proposer_index as proposer,
+            o.f_slot as slot,
+            o.f_epoch as epoch,
+            o.f_graffiti as graffiti_text,
+            o.f_el_block_number as exec_block_number,
+            o.f_el_fee_recp as exec_fee_recipient,
+            o.f_el_gas_limit as exec_gas_limit,
+            o.f_el_gas_used as exec_gas_used,
+            o.f_el_transactions as exec_transactions_count
+          FROM t_orphans o
+          WHERE ${orphanConditions}
+          ORDER BY o.f_epoch DESC, o.f_slot DESC
+        `
+
+        const orphanResultSet = await clickhouse.query({
+          query: orphanQuery,
+          format: 'JSONEachRow'
+        })
+
+        const orphanData = await orphanResultSet.json()
+
+        // Replace orphaned blocks in original data with t_orphans data
+        const updatedData = data.map(row => {
+          if (row.exec_block_number === "0") {
+            // Find matching orphan data by proposer and slot
+            const orphanMatch = orphanData.find(orphan =>
+              orphan.proposer === row.proposer && orphan.slot === row.slot
+            )
+            return orphanMatch || row  // Use orphan data if found, otherwise keep original
+          }
+          return row
+        })
+
+        console.log(`Replaced ${orphanedBlocks.length} orphaned blocks with t_orphans data`)
+
+        return {
+          status: 'OK',
+          data: updatedData
+        }
+      }
+
       return {
         status: 'OK',
         data: data

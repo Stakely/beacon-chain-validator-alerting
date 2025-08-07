@@ -528,12 +528,14 @@ Exec fee recipient: ${validatorData.exec_fee_recipient}
 Exec gas limit: ${validatorData.exec_gas_limit}
 Exec gas used: ${validatorData.exec_gas_used}
 Exec transactions count: ${validatorData.exec_transactions_count}
-Exec blockreward: ${blockReward} ETH
-Exec feerecipient: ${feeRecipient}
+Exec blockreward: ${blockReward || 'UNKNOWN'} ETH
+Exec feerecipient: ${feeRecipient || 'UNKNOWN'}
 Graffiti: ${validatorData.graffiti_text}`
 
         // Only nofify in these cases
-        if (String(validatorData.status) !== '1') {
+        if (String(validatorData.status) === '2') {
+          await discordAlerts.sendValidatorMessage('BLOCK-ORPHANED', savedValidatorData.protocol, savedValidatorData.is_alert_active, savedValidatorData.vc_location, null, blockInfo)
+        } else if (String(validatorData.status) !== '1') {
           await discordAlerts.sendValidatorMessage('BLOCK-MISSED', savedValidatorData.protocol, savedValidatorData.is_alert_active, savedValidatorData.vc_location, null, blockInfo)
         } else if (validatorData.exec_transactions_count === 0) {
           await discordAlerts.sendValidatorMessage('BLOCK-EMPTY', savedValidatorData.protocol, savedValidatorData.is_alert_active, savedValidatorData.vc_location, null, blockInfo)
