@@ -254,7 +254,7 @@ const convertPublicKeysToIndexes = async () => {
   const savedValidators = await db.query('SELECT public_key FROM beacon_chain_validators_monitoring WHERE network = ? AND validator_index IS NULL AND is_alert_active = 1 ORDER BY RAND()', NETWORK)
 
   // Chunk based on data source: beaconchain has URL length limits with public keys, goteth has query size limits
-  const chunkSize = DATA_SOURCE_MODE === 'goteth' ? 2000 : 70  // Large chunks for goteth (query size limit), 70 for beaconchain (URL length limit)
+  const chunkSize = DATA_SOURCE_MODE === 'goteth' ? 1000 : 70  // Large chunks for goteth (query size limit), 70 for beaconchain (URL length limit)
   const savedValidatorsChunks = chunkSize >= savedValidators.length ? [savedValidators] : arrayToChunks(savedValidators, chunkSize)
 
   console.log(`Processing ${savedValidators.length} validators for index conversion in ${savedValidatorsChunks.length} chunk(s) using ${DATA_SOURCE_MODE} mode`)
@@ -289,7 +289,7 @@ const checkBeaconchainData = async () => {
   const savedValidators = await db.query('SELECT validator_index, protocol, is_alert_active, vc_location, balance, status, slashed, slashed FROM beacon_chain_validators_monitoring WHERE network = ? AND validator_index IS NOT NULL AND is_alert_active = 1 ORDER BY RAND()', NETWORK)
 
   // Chunk based on data source: beaconchain has limits, goteth has query size limits
-  const chunkSize = DATA_SOURCE_MODE === 'goteth' ? 2000 : 100  // Large chunks for goteth (query size limit), 100 for beaconchain
+  const chunkSize = DATA_SOURCE_MODE === 'goteth' ? 1000 : 100  // Large chunks for goteth (query size limit), 100 for beaconchain
   const savedValidatorsChunks = chunkSize >= savedValidators.length ? [savedValidators] : arrayToChunks(savedValidators, chunkSize)
 
   console.log(`Processing ${savedValidators.length} validators in ${savedValidatorsChunks.length} chunk(s) using ${DATA_SOURCE_MODE} mode`)
@@ -368,7 +368,7 @@ const checkSyncCommitteeMissed = async () => {
   const savedValidators = await db.query('SELECT validator_index, protocol, is_alert_active, last_epoch_checked, vc_location, balance, status, slashed FROM beacon_chain_validators_monitoring WHERE network = ? AND validator_index IS NOT NULL AND is_alert_active = 1 ORDER BY RAND()', NETWORK)
 
   // Chunk based on data source: beaconchain has limits, goteth has query size limits
-  const chunkSize = DATA_SOURCE_MODE === 'goteth' ? 2000 : 100  // Large chunks for goteth (query size limit), 100 for beaconchain
+  const chunkSize = DATA_SOURCE_MODE === 'goteth' ? 1000 : 100  // Large chunks for goteth (query size limit), 100 for beaconchain
   const savedValidatorsChunks = chunkSize >= savedValidators.length ? [savedValidators] : arrayToChunks(savedValidators, chunkSize)
 
   console.log(`Processing ${savedValidators.length} validators for sync committee check in ${savedValidatorsChunks.length} chunk(s) using ${DATA_SOURCE_MODE} mode`)
@@ -462,7 +462,7 @@ const checkBlocks = async (latestEpoch) => {
   const savedValidators = await db.query('SELECT validator_index, last_epoch_checked, protocol, is_alert_active, vc_location FROM beacon_chain_validators_monitoring WHERE network = ? AND validator_index IS NOT NULL AND is_alert_active = 1 ORDER BY RAND()', NETWORK)
 
   // Chunk based on data source: beaconchain has limits, goteth has query size limits
-  const chunkSize = DATA_SOURCE_MODE === 'goteth' ? 2000 : 100  // Large chunks for goteth (query size limit), 100 for beaconchain
+  const chunkSize = DATA_SOURCE_MODE === 'goteth' ? 1000 : 100  // Large chunks for goteth (query size limit), 100 for beaconchain
   const savedValidatorsChunks = chunkSize >= savedValidators.length ? [savedValidators] : arrayToChunks(savedValidators, chunkSize)
 
   console.log(`Processing ${savedValidators.length} validators for blocks check in ${savedValidatorsChunks.length} chunk(s) using ${DATA_SOURCE_MODE} mode`)
@@ -555,7 +555,7 @@ const checkAttestations = async () => {
   const aggregatedMissedAttestations = {}
 
   // Chunk based on data source: beaconchain has limits, goteth has query size limits
-  const chunkSize = DATA_SOURCE_MODE === 'goteth' ? 2000 : 100  // Large chunks for goteth (query size limit), 100 for beaconchain
+  const chunkSize = DATA_SOURCE_MODE === 'goteth' ? 1000 : 100  // Large chunks for goteth (query size limit), 100 for beaconchain
   const savedValidatorsChunks = chunkSize >= savedValidators.length ? [savedValidators] : arrayToChunks(savedValidators, chunkSize)
 
   console.log(`Processing ${savedValidators.length} validators for attestations check in ${savedValidatorsChunks.length} chunk(s) using ${DATA_SOURCE_MODE} mode`)
@@ -655,7 +655,7 @@ const checkConsolidationEvents = async () => {
   const savedValidators = await db.query('SELECT validator_index, protocol, is_alert_active, last_epoch_checked, public_key, vc_location, balance, status, slashed FROM beacon_chain_validators_monitoring WHERE network = ? AND validator_index IS NOT NULL AND is_alert_active = 1 ORDER BY RAND()', NETWORK)
 
   // Chunk based on data source: beaconchain has limits, goteth has query size limits
-  const chunkSize = DATA_SOURCE_MODE === 'goteth' ? 2000 : 100  // Large chunks for goteth (query size limit), 100 for beaconchain
+  const chunkSize = DATA_SOURCE_MODE === 'goteth' ? 1000 : 100  // Large chunks for goteth (query size limit), 100 for beaconchain
   const savedValidatorsChunks = chunkSize >= savedValidators.length ? [savedValidators] : arrayToChunks(savedValidators, chunkSize)
 
   console.log(`Processing ${savedValidators.length} validators for consolidation events check in ${savedValidatorsChunks.length} chunk(s) using ${DATA_SOURCE_MODE} mode`)
