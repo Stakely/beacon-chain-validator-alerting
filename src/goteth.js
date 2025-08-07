@@ -287,8 +287,7 @@ const goteth = {
         FROM t_validator_rewards_summary 
         WHERE f_val_idx IN (${validators.join(',')})
         ${epochFilter}
-        ORDER BY f_epoch DESC, f_val_idx
-        LIMIT 10000
+        ORDER BY f_epoch ASC, f_val_idx
       `
       
       const resultSet = await clickhouse.query({

@@ -250,11 +250,14 @@ const checkValidators = async () => {
 }
 
 const convertPublicKeysToIndexes = async () => {
-  // Get a random sample of 70 saved validators without index
-  // We do not fetch all the validators here since requests are limited
+  // Get saved validators without index
   const savedValidators = await db.query('SELECT public_key FROM beacon_chain_validators_monitoring WHERE network = ? AND validator_index IS NULL AND is_alert_active = 1 ORDER BY RAND()', NETWORK)
-  // Iterate validators in groups of 70 instead of 100 since the url is too large using public keys
-  const savedValidatorsChunks = arrayToChunks(savedValidators, 500)
+
+  // Chunk based on data source: beaconchain has URL length limits with public keys, goteth can handle larger datasets
+  const chunkSize = DATA_SOURCE_MODE === 'goteth' ? savedValidators.length : 70  // No chunking for goteth, 70 for beaconchain (URL length limit)
+  const savedValidatorsChunks = chunkSize >= savedValidators.length ? [savedValidators] : arrayToChunks(savedValidators, chunkSize)
+
+  console.log(`Processing ${savedValidators.length} validators for index conversion in ${savedValidatorsChunks.length} chunk(s) using ${DATA_SOURCE_MODE} mode`)
   for (const savedValidatorsChunk of savedValidatorsChunks) {
     // Prepare the data to perform the request
     const publicKeysArray = savedValidatorsChunk.map((key) => key.public_key)
@@ -285,8 +288,12 @@ const checkBeaconchainData = async () => {
   // Get all the saved validator data randomly
   const savedValidators = await db.query('SELECT validator_index, protocol, is_alert_active, vc_location, balance, status, slashed, slashed FROM beacon_chain_validators_monitoring WHERE network = ? AND validator_index IS NOT NULL AND is_alert_active = 1 ORDER BY RAND()', NETWORK)
 
-  // The maximum number of validators per request is 100
-  const savedValidatorsChunks = arrayToChunks(savedValidators, 500)
+  // Chunk based on data source: beaconchain has limits, goteth can handle larger datasets
+  const chunkSize = DATA_SOURCE_MODE === 'goteth' ? savedValidators.length : 100  // No chunking for goteth, 100 for beaconchain
+  const savedValidatorsChunks = chunkSize >= savedValidators.length ? [savedValidators] : arrayToChunks(savedValidators, chunkSize)
+
+  console.log(`Processing ${savedValidators.length} validators in ${savedValidatorsChunks.length} chunk(s) using ${DATA_SOURCE_MODE} mode`)
+
   for (const savedValidatorsChunk of savedValidatorsChunks) {
     // Prepare the data to perform the request
     const indexesArray = savedValidatorsChunk.map((key) => key.validator_index)
@@ -359,8 +366,12 @@ const checkBeaconchainData = async () => {
 const checkSyncCommitteeMissed = async () => {
   // Get all the saved validator data randomly
   const savedValidators = await db.query('SELECT validator_index, protocol, is_alert_active, last_epoch_checked, vc_location, balance, status, slashed FROM beacon_chain_validators_monitoring WHERE network = ? AND validator_index IS NOT NULL AND is_alert_active = 1 ORDER BY RAND()', NETWORK)
-  // The maximum number of validators per request is 100
-  const savedValidatorsChunks = arrayToChunks(savedValidators, 500)
+
+  // Chunk based on data source: beaconchain has limits, goteth can handle larger datasets
+  const chunkSize = DATA_SOURCE_MODE === 'goteth' ? savedValidators.length : 100  // No chunking for goteth, 100 for beaconchain
+  const savedValidatorsChunks = chunkSize >= savedValidators.length ? [savedValidators] : arrayToChunks(savedValidators, chunkSize)
+
+  console.log(`Processing ${savedValidators.length} validators for sync committee check in ${savedValidatorsChunks.length} chunk(s) using ${DATA_SOURCE_MODE} mode`)
   for (const savedValidatorsChunk of savedValidatorsChunks) {
     const indexesWithLastEpochCheckedArray = savedValidatorsChunk.map((key) => ({validator_index: key.validator_index, last_epoch_checked: key.last_epoch_checked}))
     const validatorData = await dataFetcher.fetchMissingSyncCommittee(indexesWithLastEpochCheckedArray)
@@ -450,8 +461,11 @@ const checkBlocks = async (latestEpoch) => {
   // Get all the saved validator data randomly
   const savedValidators = await db.query('SELECT validator_index, last_epoch_checked, protocol, is_alert_active, vc_location FROM beacon_chain_validators_monitoring WHERE network = ? AND validator_index IS NOT NULL AND is_alert_active = 1 ORDER BY RAND()', NETWORK)
 
-  // The maximum number of validators per request is 100
-  const savedValidatorsChunks = arrayToChunks(savedValidators, 500)
+  // Chunk based on data source: beaconchain has limits, goteth can handle larger datasets
+  const chunkSize = DATA_SOURCE_MODE === 'goteth' ? savedValidators.length : 100  // No chunking for goteth, 100 for beaconchain
+  const savedValidatorsChunks = chunkSize >= savedValidators.length ? [savedValidators] : arrayToChunks(savedValidators, chunkSize)
+
+  console.log(`Processing ${savedValidators.length} validators for blocks check in ${savedValidatorsChunks.length} chunk(s) using ${DATA_SOURCE_MODE} mode`)
   for (const savedValidatorsChunk of savedValidatorsChunks) {
     // Prepare the data to perform the request
     const indexesArray = savedValidatorsChunk.map((key) => key.validator_index)
@@ -540,8 +554,11 @@ const checkAttestations = async () => {
   // Extract all the data first and then send an aggregate message by hostname
   const aggregatedMissedAttestations = {}
 
-  // The maximum number of validators per request is 100
-  const savedValidatorsChunks = arrayToChunks(savedValidators, 500)
+  // Chunk based on data source: beaconchain has limits, goteth can handle larger datasets
+  const chunkSize = DATA_SOURCE_MODE === 'goteth' ? savedValidators.length : 100  // No chunking for goteth, 100 for beaconchain
+  const savedValidatorsChunks = chunkSize >= savedValidators.length ? [savedValidators] : arrayToChunks(savedValidators, chunkSize)
+
+  console.log(`Processing ${savedValidators.length} validators for attestations check in ${savedValidatorsChunks.length} chunk(s) using ${DATA_SOURCE_MODE} mode`)
   for (const savedValidatorsChunk of savedValidatorsChunks) {
     // Prepare the data to perform the request
     const indexesArray = savedValidatorsChunk.map((key) => key.validator_index)
@@ -636,8 +653,12 @@ const checkAttestations = async () => {
 const checkConsolidationEvents = async () => {
   // Get all the saved validator data randomly
   const savedValidators = await db.query('SELECT validator_index, protocol, is_alert_active, last_epoch_checked, public_key, vc_location, balance, status, slashed FROM beacon_chain_validators_monitoring WHERE network = ? AND validator_index IS NOT NULL AND is_alert_active = 1 ORDER BY RAND()', NETWORK)
-  // The maximum number of validators per request is 100
-  const savedValidatorsChunks = arrayToChunks(savedValidators, 500)
+
+  // Chunk based on data source: beaconchain has limits, goteth can handle larger datasets
+  const chunkSize = DATA_SOURCE_MODE === 'goteth' ? savedValidators.length : 100  // No chunking for goteth, 100 for beaconchain
+  const savedValidatorsChunks = chunkSize >= savedValidators.length ? [savedValidators] : arrayToChunks(savedValidators, chunkSize)
+
+  console.log(`Processing ${savedValidators.length} validators for consolidation events check in ${savedValidatorsChunks.length} chunk(s) using ${DATA_SOURCE_MODE} mode`)
   for (const savedValidatorsChunk of savedValidatorsChunks) {
     const validatorIndexes = savedValidatorsChunk.map((key) => key.validator_index)
     const validatorPubkeys = savedValidatorsChunk.map((key) => key.public_key)
