@@ -607,7 +607,7 @@ const checkAttestations = async () => {
       }
       // For goteth mode, skip the epoch <= lastEpoch check, but keep other conditions
       const epochCondition = DATA_SOURCE_MODE === 'goteth' ? true : validatorData.epoch <= lastEpoch
-      if (epochCondition && validatorData.status !== 1 && validatorData.epoch > savedValidatorData.last_epoch_checked) {
+      if (epochCondition && Number(validatorData.status) !== 1 && validatorData.epoch > savedValidatorData.last_epoch_checked) {
         if (!aggregatedMissedAttestations[savedValidatorData.vc_location]) {
           aggregatedMissedAttestations[savedValidatorData.vc_location] = []
         }
