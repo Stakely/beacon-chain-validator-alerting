@@ -111,7 +111,7 @@ const goteth = {
             WHEN f_missing_source = true AND f_missing_target = true AND f_missing_head = true 
             THEN 0 
             ELSE 1 
-          END as status
+          END as status_calculated
         FROM t_validator_rewards_summary 
         WHERE f_val_idx IN (${validators.join(',')})
         AND f_epoch > ${Number(lastFinalizedEpoch.data.epoch)}
