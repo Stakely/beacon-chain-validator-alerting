@@ -100,7 +100,6 @@ const goteth = {
         SELECT 
           f_val_idx as validatorindex,
           f_epoch as epoch,
-          f_status as status,
           f_inclusion_delay as inclusion_delay,
           f_missing_source,
           f_missing_target,
@@ -112,7 +111,7 @@ const goteth = {
             WHEN f_missing_source = true AND f_missing_target = true AND f_missing_head = true 
             THEN 0 
             ELSE 1 
-          END as status_calculated
+          END as status
         FROM t_validator_rewards_summary 
         WHERE f_val_idx IN (${validators.join(',')})
         AND f_epoch > ${Number(lastFinalizedEpoch.data.epoch)}
