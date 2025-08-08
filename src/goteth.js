@@ -114,7 +114,7 @@ const goteth = {
           END as status_calculated
         FROM t_validator_rewards_summary 
         WHERE f_val_idx IN (${validators.join(',')})
-        AND f_epoch > ${Number(lastFinalizedEpoch.data.epoch)}
+        AND f_epoch >= ${Number(lastFinalizedEpoch.data.epoch)}
         ORDER BY f_epoch DESC
       `
       
