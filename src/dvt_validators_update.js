@@ -103,7 +103,7 @@ const getSsvValidators = async (network) => {
 
   const discardedValidators = [];
   const filteredValidators = uniqueArray.filter(validator => {
-    const isValid = validator.is_deleted === false && validator.is_valid === true && validator.status === 'Active';
+    const isValid = validator.is_deleted === false && validator.is_valid === true && validator.id_liquidated === false;
     if (!isValid) {
       discardedValidators.push(validator);
     }
