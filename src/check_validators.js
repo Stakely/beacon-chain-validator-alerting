@@ -377,11 +377,12 @@ const checkBeaconchainData = async () => {
       if (validatorData.slashed !== savedValidatorData.slashed && savedValidatorData.slashed !== null) {
         await discordAlerts.sendValidatorMessage('SLASH-CHANGE', savedValidatorData.protocol, savedValidatorData.is_alert_active, savedValidatorData.vc_location, validatorData.validatorindex, savedValidatorData.slashed, validatorData.slashed)
       }
+      // These changes are almost everytime false positives
+      const effectiveNewStatus = getEffectiveStatus(validatorData.status, validatorData.exit_epoch)
+      validatorData.status = effectiveNewStatus
+      console.log('effectiveNewStatus', effectiveNewStatus)
       // Check status changes even if the saved data is null (validator starts validating)
       if (!isEquivalentStatus(validatorData.status, savedValidatorData.status, validatorData.exit_epoch)) {
-        // These changes are almost everytime false positives
-        const effectiveNewStatus = getEffectiveStatus(validatorData.status, validatorData.exit_epoch)
-        validatorData.status = effectiveNewStatus
         if (isActiveTransition(savedValidatorData.status, effectiveNewStatus)) {
           console.log('isActiveTransition', savedValidatorData.status, effectiveNewStatus)
           // Spam
@@ -390,14 +391,14 @@ const checkBeaconchainData = async () => {
         }
       }
 
-      // Update validator data
-      await db.query('UPDATE beacon_chain_validators_monitoring SET balance = ?, slashed = ?, status = ? WHERE validator_index = ? AND network = ?',
-        [validatorData.balance, validatorData.slashed, validatorData.status, Number(validatorData.validatorindex), NETWORK])
-
       // Update the in-memory data to prevent stale data issues in subsequent chunks
       savedValidatorData.balance = validatorData.balance
       savedValidatorData.slashed = validatorData.slashed
       savedValidatorData.status = validatorData.status
+
+      // Update validator data
+      await db.query('UPDATE beacon_chain_validators_monitoring SET balance = ?, slashed = ?, status = ? WHERE validator_index = ? AND network = ?',
+        [validatorData.balance, validatorData.slashed, validatorData.status, Number(validatorData.validatorindex), NETWORK])
     }
   }
   console.log('Beaconchain data check done.', savedValidators.length, 'validators checked')
