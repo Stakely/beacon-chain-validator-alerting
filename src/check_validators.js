@@ -380,7 +380,7 @@ const checkBeaconchainData = async () => {
       // These changes are almost everytime false positives
       const effectiveNewStatus = getEffectiveStatus(validatorData.status, validatorData.exit_epoch)
       validatorData.status = effectiveNewStatus
-      console.log('effectiveNewStatus', effectiveNewStatus)
+      // console.log('effectiveNewStatus', effectiveNewStatus)
       // Check status changes even if the saved data is null (validator starts validating)
       if (!isEquivalentStatus(validatorData.status, savedValidatorData.status, validatorData.exit_epoch)) {
         if (isActiveTransition(savedValidatorData.status, effectiveNewStatus)) {
