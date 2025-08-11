@@ -88,10 +88,10 @@ function isPendingStatus(status) {
 
 function isActiveTransition(oldStatus, newStatus) {
   // Check for active_offline <-> active_online transitions (considered spam)
-  // BUT do NOT consider transitions involving exiting_online as spam
-
-  // If either status is exiting_online, this is NOT a spam transition
-  if (oldStatus === 'exiting_online' || newStatus === 'exiting_online') {
+  // BUT do NOT consider transitions TO exiting_online as spam
+ 
+  // If the NEW status is exiting_online, this is NOT a spam transition
+  if (newStatus === 'exiting_online') {
     return false
   }
 
