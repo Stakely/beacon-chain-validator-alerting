@@ -35,6 +35,19 @@ function normalizeStatus(status) {
   return status
 }
 
+function getEffectiveStatus(status, exit_epoch) {
+  // Get the effective status considering exit_epoch
+  const normalizedStatus = normalizeStatus(status)
+  if (normalizedStatus === 'active') {
+    if (exit_epoch !== '18446744073709551615' && exit_epoch !== 18446744073709551615) {
+      return 'exiting_online'
+    } else {
+      return 'active_online'
+    }
+  }
+  return status
+}
+
 function isEquivalentStatus(status1, status2, f_exit_epoch) {
   const normalized1 = normalizeStatus(status1)
   const normalized2 = normalizeStatus(status2)
@@ -49,7 +62,18 @@ function isEquivalentStatus(status1, status2, f_exit_epoch) {
     }
   }
   
+  // Check for specific transitions that should trigger alerts (NOT considered equivalent)
+  // active_online → exiting_online should alert
+  if ((status2 === 'active_online' || normalized2 === 'active') && effectiveStatus1 === 'exiting_online') {
+    return false
+  }
+  // active → exiting_online should alert
+  if (normalized2 === 'active' && effectiveStatus1 === 'exiting_online') {
+    return false
+  }
+
   // Check if both are equivalent to active (active, active_online, active_offline, exiting_online)
+  // But exclude the transitions we want to alert on above
   if ((effectiveStatus1 === 'active_online' || effectiveStatus1 === 'active_offline' || effectiveStatus1 === 'exiting_online' || normalized1 === 'active') &&
       (normalized2 === 'active' || status2 === 'active_online' || status2 === 'active_offline' || status2 === 'exiting_online')) {
     return true
@@ -64,6 +88,13 @@ function isPendingStatus(status) {
 
 function isActiveTransition(oldStatus, newStatus) {
   // Check for active_offline <-> active_online transitions (considered spam)
+  // BUT do NOT consider transitions involving exiting_online as spam
+
+  // If either status is exiting_online, this is NOT a spam transition
+  if (oldStatus === 'exiting_online' || newStatus === 'exiting_online') {
+    return false
+  }
+
   const isOldActiveOffline = (oldStatus === 'active_offline' || (normalizeStatus(oldStatus) === 'active'))
   const isNewActiveOnline = (newStatus === 'active_online' || (normalizeStatus(newStatus) === 'active'))
   const isOldActiveOnline = (oldStatus === 'active_online' || (normalizeStatus(oldStatus) === 'active'))
@@ -349,10 +380,13 @@ const checkBeaconchainData = async () => {
       // Check status changes even if the saved data is null (validator starts validating)
       if (!isEquivalentStatus(validatorData.status, savedValidatorData.status, validatorData.exit_epoch)) {
         // These changes are almost everytime false positives
-        if (isActiveTransition(savedValidatorData.status, validatorData.status)) {
+        const effectiveNewStatus = getEffectiveStatus(validatorData.status, validatorData.exit_epoch)
+        validatorData.status = effectiveNewStatus
+        if (isActiveTransition(savedValidatorData.status, effectiveNewStatus)) {
+          console.log('isActiveTransition', savedValidatorData.status, effectiveNewStatus)
           // Spam
         } else {
-          await discordAlerts.sendValidatorMessage('STATUS-CHANGE', savedValidatorData.protocol, savedValidatorData.is_alert_active, savedValidatorData.vc_location, validatorData.validatorindex, savedValidatorData.status, validatorData.status)
+          await discordAlerts.sendValidatorMessage('STATUS-CHANGE', savedValidatorData.protocol, savedValidatorData.is_alert_active, savedValidatorData.vc_location, validatorData.validatorindex, savedValidatorData.status, effectiveNewStatus)
         }
       }
 
