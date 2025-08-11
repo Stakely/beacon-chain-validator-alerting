@@ -393,6 +393,11 @@ const checkBeaconchainData = async () => {
       // Update validator data
       await db.query('UPDATE beacon_chain_validators_monitoring SET balance = ?, slashed = ?, status = ? WHERE validator_index = ? AND network = ?',
         [validatorData.balance, validatorData.slashed, validatorData.status, Number(validatorData.validatorindex), NETWORK])
+
+      // Update the in-memory data to prevent stale data issues in subsequent chunks
+      savedValidatorData.balance = validatorData.balance
+      savedValidatorData.slashed = validatorData.slashed
+      savedValidatorData.status = validatorData.status
     }
   }
   console.log('Beaconchain data check done.', savedValidators.length, 'validators checked')
