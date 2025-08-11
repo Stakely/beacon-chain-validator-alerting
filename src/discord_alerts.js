@@ -31,7 +31,7 @@ const sendValidatorMessage = async (alertType, protocol, isAlertActive, vcLocati
     color = '99cc33' // Green
   } else if (alertType === 'SLASH-CHANGE') {
     color = 'cc3300' // Red
-  } else if (alertType === 'ATTESTATIONS-MISSED-DELAYED') {
+  } else if (alertType === 'ATTESTATIONS-MISSED-DELAYED' || alertType === 'SYNC-COMMITTEE-MISSED') {
     color = 'ffcc00' // Yellow
   } else if (alertType === 'STATUS-CHANGE') {
     if (newData === 'active_online') {
