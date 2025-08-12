@@ -45,7 +45,7 @@ const goteth = {
       const isIndexes = validators.every(v => typeof v === 'number' || /^\d+$/.test(v))
       const whereClause = isIndexes 
         ? `f_val_idx IN (${validators.join(',')})`
-        : `f_public_key IN ('${validators.join("','")}')`
+        : `f_public_key IN ('${validators.map(v => v.startsWith('0x') ? v : '0x' + v).join("','")}')`
       
       const query = `
         SELECT 
@@ -685,7 +685,7 @@ const goteth = {
           f_target_pubkey as target_pubkey,
           f_result as result
         FROM t_consolidation_requests
-        WHERE (f_source_pubkey IN ('${validatorPubkeys.join("','")}') OR f_target_pubkey IN ('${validatorPubkeys.join("','")}')) AND 
+        WHERE (f_source_pubkey IN ('${validatorPubkeys.map(v => v.startsWith('0x') ? v : '0x' + v).join("','")}') OR f_target_pubkey IN ('${validatorPubkeys.map(v => v.startsWith('0x') ? v : '0x' + v).join("','")}')) AND 
         f_slot >= ${firstSlotOfEpoch.data.first_slot}
         ORDER BY f_slot ASC
       `
