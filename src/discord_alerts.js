@@ -40,6 +40,8 @@ const sendValidatorMessage = async (alertType, protocol, isAlertActive, vcLocati
       color = '99cc33' // Green
     } else if (newData === 'active_offline') {
       color = 'ffcc00' // Yellow
+    } else if (newData === 'slashed') {
+      color = 'ff1269' // Red 
     }
   }
   // Default color
