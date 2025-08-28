@@ -735,7 +735,7 @@ const checkConsolidationEvents = async () => {
         }
         let epochQuery = await dataFetcher.fetchEpochFromSlot(validator.slot)
         if (foundSavedValidator.last_epoch_checked < epochQuery.data.epoch) {
-          await discordAlerts.sendValidatorMessage('CONSOLIDATION-EVENT', foundSavedValidator.protocol, foundSavedValidator.is_alert_active, foundSavedValidator.vc_location, validator.validator_index, foundSavedValidator, `Validator in epoch ${validator.epoch} had a consolidation event\nSource: ${validator.source_pubkey}\nTarget: ${validator.target_pubkey}\nResult: ${validator.result} [result_ref](https://github.com/migalabs/goteth/blob/master/docs/tables.md#reference-for-f_result-1)`)
+          await discordAlerts.sendValidatorMessage('CONSOLIDATION-EVENT', foundSavedValidator.protocol, foundSavedValidator.is_alert_active, foundSavedValidator.vc_location, validator.validator_index, foundSavedValidator, `Validator in epoch ${epochQuery.data.epoch} had a consolidation event\nSource: ${validator.source_pubkey}\nTarget: ${validator.target_pubkey}\nResult: ${validator.result} [result_ref](https://github.com/migalabs/goteth/blob/master/docs/tables.md#reference-for-f_result)`)
         } else {
           console.log('Validator already checked in epoch | Should have been notified before', epochQuery.data.epoch)
         }
