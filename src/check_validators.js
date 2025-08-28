@@ -184,6 +184,15 @@ const dataFetcher = {
       return []
     }
   },
+
+  async fetchEpochFromSlot(slot) {
+    if (DATA_SOURCE_MODE === 'goteth') {
+      return await gotethFetcher.getEpochFromSlot(slot)
+    } else {
+      console.log('fetchEpochFromSlot not implemented for beaconchain')
+      return []
+    }
+  }
 }
 
 // Goteth function-based implementation
@@ -222,6 +231,10 @@ const gotethFetcher = {
 
   async getValidatorConsolidationEvents(validatorPubkeys) {
     return await goteth.getValidatorConsolidationEvents(NETWORK, validatorPubkeys)
+  },
+
+  async getEpochFromSlot(slot) {
+    return await goteth.getEpochFromSlot(NETWORK, slot)
   }
 }
 
@@ -713,17 +726,18 @@ const checkConsolidationEvents = async () => {
     if (validatorData.data.length > 0) {
 
       for (const validator of validatorData.data) {
-        const foundSavedValidator = savedValidatorsChunk.find(savedValidator => savedValidator.public_key === validator.source_pubkey || savedValidator.public_key === validator.target_pubkey)
+        const foundSavedValidator = savedValidatorsChunk.find(savedValidator => savedValidator.public_key === validator.source_pubkey?.replace('0x', '') || savedValidator.public_key === validator.target_pubkey?.replace('0x', ''))
 
         if (!foundSavedValidator) {
-          console.log('Validator not found in saved validators', validator.validator_index)
-          await discordAlerts.sendMessage('API-ERROR', `checkSyncCommitteeMissed | Validator not found in saved validators : ${validator.validator_index}`)
+          console.log('Validator not found in saved validators ', validator.source_pubkey, validator.target_pubkey)
+          await discordAlerts.sendMessage('API-ERROR', `checkConsolidationEvents | Validator not found in saved validators public keys: ${validator.source_pubkey}, ${validator.target_pubkey}`)
           continue
         }
-        if (foundSavedValidator.last_epoch_checked < validator.epoch) {
+        let epochQuery = await dataFetcher.fetchEpochFromSlot(validator.slot)
+        if (foundSavedValidator.last_epoch_checked < epochQuery.data.epoch) {
           await discordAlerts.sendValidatorMessage('CONSOLIDATION-EVENT', foundSavedValidator.protocol, foundSavedValidator.is_alert_active, foundSavedValidator.vc_location, validator.validator_index, foundSavedValidator, `Validator in epoch ${validator.epoch} had a consolidation event\nSource: ${validator.source_pubkey}\nTarget: ${validator.target_pubkey}\nResult: ${validator.result} [result_ref](https://github.com/migalabs/goteth/blob/master/docs/tables.md#reference-for-f_result-1)`)
         } else {
-          console.log('Validator already checked in epoch | Should have been notified before', validator.epoch)
+          console.log('Validator already checked in epoch | Should have been notified before', epochQuery.data.epoch)
         }
       }
     }

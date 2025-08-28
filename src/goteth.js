@@ -622,6 +622,42 @@ const goteth = {
     }
   },
 
+  /**
+   * Get epoch corresponding to a given slot
+   * @param {string} network - Network name
+   * @param {number} slot - Slot number
+   * @returns {Object} Response object with epoch data
+   */
+  async getEpochFromSlot(network, slot) {
+    try {
+      console.log(`Fetching epoch for slot ${slot} from ClickHouse for network: ${network}`)
+
+      const query = `
+        SELECT f_epoch as epoch
+        FROM t_block_metrics
+        WHERE f_slot = ${slot}
+        LIMIT 1
+      `
+
+      const resultSet = await clickhouse.query({
+        query: query,
+        format: 'JSONEachRow'
+      })
+
+      const data = await resultSet.json()
+
+      return {
+        status: 'OK',
+        data: {
+          epoch: data[0]?.epoch || null
+        }
+      }
+    } catch (error) {
+      console.error('ClickHouse epoch from slot query error:', error)
+      throw error
+    }
+  },
+
   async getMissingSyncCommittee(network, indexesWithLastEpochCheckedArray) {
     try {
       console.log(`Fetching missing sync committee from ClickHouse for network: ${network}, validators: ${indexesWithLastEpochCheckedArray.length}`)
