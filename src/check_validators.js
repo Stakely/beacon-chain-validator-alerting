@@ -235,6 +235,10 @@ const gotethFetcher = {
 
   async getEpochFromSlot(slot) {
     return await goteth.getEpochFromSlot(NETWORK, slot)
+  },
+
+  getConsolidationResultStatus(resultCode) {
+    return goteth.getConsolidationResultStatus(resultCode)
   }
 }
 
@@ -733,9 +737,13 @@ const checkConsolidationEvents = async () => {
           await discordAlerts.sendMessage('API-ERROR', `checkConsolidationEvents | Validator not found in saved validators public keys: ${validator.source_pubkey}, ${validator.target_pubkey}`)
           continue
         }
+
+        // Add result_string using the getConsolidationResultStatus function
+        validator.result_string = gotethFetcher.getConsolidationResultStatus(validator.result)
+
         let epochQuery = await dataFetcher.fetchEpochFromSlot(validator.slot)
         if (foundSavedValidator.last_epoch_checked < epochQuery.data.epoch) {
-          await discordAlerts.sendValidatorMessage('CONSOLIDATION-EVENT', foundSavedValidator.protocol, foundSavedValidator.is_alert_active, foundSavedValidator.vc_location, validator.validator_index, foundSavedValidator, `Validator in epoch ${epochQuery.data.epoch} had a consolidation event\nSource: ${validator.source_pubkey}\nTarget: ${validator.target_pubkey}\nResult: ${validator.result} [result_ref](https://github.com/migalabs/goteth/blob/master/docs/tables.md#reference-for-f_result)`)
+          await discordAlerts.sendValidatorMessage('CONSOLIDATION-EVENT', foundSavedValidator.protocol, foundSavedValidator.is_alert_active, foundSavedValidator.vc_location, validator.validator_index, 'Event', `Validator ${validator.validator_index} in epoch ${epochQuery.data.epoch} had a consolidation event\nSource: ${validator.source_pubkey}\nTarget: ${validator.target_pubkey}\nResult: ${validator.result} (${validator.result_string})`)
         } else {
           console.log('Validator already checked in epoch | Should have been notified before', epochQuery.data.epoch)
         }

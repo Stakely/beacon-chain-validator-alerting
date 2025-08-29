@@ -697,6 +697,62 @@ const goteth = {
     }
   },
 
+  /**
+   * Get consolidation request result status description
+   * @param {number} resultCode - The f_result code from consolidation_requests table
+   * @returns {string} Human-readable status description
+   */
+  getConsolidationResultStatus(resultCode) {
+    switch (resultCode) {
+      // General Results
+      case 0:
+        return 'Unknown - Consolidation request result is unknown'
+      case 1:
+        return 'Success - Consolidation request was successful'
+
+      // Global Errors
+      case 10:
+        return 'TotalBalanceTooLow - Total balance is too low to process the request'
+      case 11:
+        return 'QueueFull - The consolidation request queue is full'
+      case 12:
+        return 'RequestUsedAsExit - The consolidation request was used as an exit'
+
+      // Source Validator Errors
+      case 20:
+        return 'SrcNotFound - Source validator was not found'
+      case 21:
+        return 'SrcInvalidCredentials - Source validator has invalid credentials'
+      case 22:
+        return 'SrcInvalidSender - Source validator sender is invalid'
+      case 23:
+        return 'SrcNotActive - Source validator is not active'
+      case 24:
+        return 'SrcNotOldEnough - Source validator is not old enough'
+      case 25:
+        return 'SrcHasPendingWithdrawal - Source validator has a pending withdrawal'
+      case 26:
+        return 'SrcExitAlreadyInitiated - Source validator has already initiated an exit'
+
+      // Target Validator Errors
+      case 30:
+        return 'TgtNotFound - Target validator was not found'
+      case 31:
+        return 'TgtInvalidCredentials - Target validator has invalid credentials'
+      case 32:
+        return 'TgtInvalidSender - Target validator sender is invalid'
+      case 33:
+        return 'TgtNotCompounding - Target validator is not compounding'
+      case 34:
+        return 'TgtNotActive - Target validator is not active'
+      case 35:
+        return 'TgtExitAlreadyInitiated - Target validator has already initiated an exit'
+
+      default:
+        return `Unknown result code: ${resultCode}`
+    }
+  },
+
   async getValidatorConsolidationEvents(network, validatorPubkeys) {
     try {
       console.log(`Fetching validator consolidation events from ClickHouse for network: ${network}, validators: ${validatorPubkeys.length}`)
