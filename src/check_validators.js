@@ -19,6 +19,7 @@ const BEACONCHAIN_VALIDATOR_BLOCKS = '$endpoint/api/v1/validator/$validators/pro
 const BEACONCHAIN_VALIDATOR_SYNC_COMMITTEES = '$endpoint/api/v1/sync_committee/'
 const BEACONCHAIN_VALIDATOR_EPOCH = '$endpoint/api/v1/epoch/$epoch'
 const BEACONCHAIN_EXECUTION = '$endpoint/api/v1/execution/block/$block'
+const BEACONCHAIN_SLOT = '$endpoint/api/v1/slot/$slotOrHash'
 
 const BEACONCHAIN_ENDPOINT = process.env['BEACONCHAIN_ENDPOINT_' + NETWORK.toUpperCase()]
 const BEACONCHAIN_API_KEY = process.env.BEACONCHAIN_API_KEY
@@ -192,6 +193,16 @@ const dataFetcher = {
       console.log('fetchEpochFromSlot not implemented for beaconchain')
       return []
     }
+  },
+
+  async fetchLastSlot() {
+    if (DATA_SOURCE_MODE === 'goteth') {
+      return await gotethFetcher.getLastSlot()
+    } else {
+      const url = BEACONCHAIN_SLOT.replace('$endpoint', BEACONCHAIN_ENDPOINT).replace('$slotOrHash', 'head')
+      const res = await fetch(url, { headers: { apikey: BEACONCHAIN_API_KEY } })
+      return await res.json()
+    }
   }
 }
 
@@ -239,6 +250,10 @@ const gotethFetcher = {
 
   getConsolidationResultStatus(resultCode) {
     return goteth.getConsolidationResultStatus(resultCode)
+  },
+
+  async getLastSlot() {
+    return await goteth.getLastSlot(NETWORK)
   }
 }
 
@@ -266,6 +281,50 @@ const checkValidators = async () => {
   } catch (error) {
     console.error(`${DATA_SOURCE_MODE.toUpperCase()} epoch fetching error:`, error.message)
     await discordAlerts.sendMessage('API-ERROR', error.message)
+    return
+  }
+
+  // Check data freshness by comparing last slot timestamp
+  try {
+    const lastSlotData = await dataFetcher.fetchLastSlot()
+    if (!lastSlotData.status || lastSlotData.status !== 'OK') {
+      await discordAlerts.sendMessage('API-ERROR', `Last slot fetch failed: ${JSON.stringify(lastSlotData, null, 2)}`)
+      return
+    }
+
+    const currentTime = Math.floor(Date.now() / 1000) // Current time in seconds
+    let lastSlotTimestamp
+
+    if (DATA_SOURCE_MODE === 'goteth') {
+      lastSlotTimestamp = Number(lastSlotData.data.f_timestamp)
+      console.log('Last slot from goteth:', lastSlotData.data.f_slot, 'timestamp:', lastSlotTimestamp)
+    } else {
+      lastSlotTimestamp = Number(lastSlotData.data.exec_timestamp)
+      console.log('Last slot from beaconchain:', lastSlotData.data.slot, 'timestamp:', lastSlotTimestamp)
+    }
+
+    if (lastSlotTimestamp) {
+      const ageInSeconds = currentTime - lastSlotTimestamp
+      const ageInMinutes = Math.floor(ageInSeconds / 60)
+
+      console.log(`Data age: ${ageInMinutes} minutes (${ageInSeconds} seconds)`)
+
+      // Alert if data is 2 minutes or older
+      if (ageInSeconds >= 120) { // 2 minutes = 120 seconds
+        const alertMessage = `⚠️ **STALE DATA DETECTED** ⚠️
+Data source: ${DATA_SOURCE_MODE.toUpperCase()}
+Network: ${NETWORK}
+Last slot timestamp is **${ageInMinutes} minutes** old
+Current time: ${new Date(currentTime * 1000).toISOString()}
+Last slot time: ${new Date(lastSlotTimestamp * 1000).toISOString()}
+Age: ${ageInMinutes} minutes (${ageInSeconds} seconds)`
+
+        await discordAlerts.sendMessage('DATA-STALE', alertMessage)
+      }
+    }
+  } catch (error) {
+    console.error(`${DATA_SOURCE_MODE.toUpperCase()} last slot fetching error:`, error.message)
+    await discordAlerts.sendMessage('API-ERROR', `Last slot fetch error: ${error.message}`)
     return
   }
 

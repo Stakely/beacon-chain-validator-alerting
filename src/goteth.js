@@ -798,6 +798,42 @@ const goteth = {
       throw error
     }
   },
+
+  /**
+   * Get the last slot from block metrics
+   * @param {string} network - Network name
+   * @returns {Object} Response object with last slot data
+   */
+  async getLastSlot(network) {
+    try {
+      console.log(`Fetching last slot from ClickHouse for network: ${network}`)
+
+      const query = `
+        SELECT
+          f_timestamp,
+          f_epoch,
+          f_slot
+        FROM t_block_metrics
+        ORDER BY f_slot DESC
+        LIMIT 1
+      `
+
+      const resultSet = await clickhouse.query({
+        query: query,
+        format: 'JSONEachRow'
+      })
+
+      const data = await resultSet.json()
+
+      return {
+        status: 'OK',
+        data: data[0] || {}
+      }
+    } catch (error) {
+      console.error('ClickHouse last slot query error:', error)
+      throw error
+    }
+  },
 }
 
 module.exports = goteth
