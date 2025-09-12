@@ -60,16 +60,27 @@ const updateDvtValidators = async (dvt, network, validators) => {
 
   // remove existing validators that are not in the new list
   const pubkeysArray = validators.map((validator) => validator.public_key);
-  const placeholders = pubkeysArray.map(() => '?').join(', ');
-  const deleteQuery = `
-    DELETE FROM beacon_chain_validators_monitoring
-    WHERE network = ?
-      AND dvt_software = ?
-      AND public_key NOT IN (${placeholders});
-  `;
-  const deleteResults = await db.query(deleteQuery, [network, dvt, ...pubkeysArray]);
-  console.log('Deleted Rows affected:', deleteResults.affectedRows);
-  counter.deleted = deleteResults.affectedRows;
+
+  if (pubkeysArray.length > 0) {
+    const placeholders = pubkeysArray.map(() => '?').join(', ');
+    const deleteQuery = `
+      DELETE FROM beacon_chain_validators_monitoring
+      WHERE network = ?
+        AND dvt_software = ?
+        AND public_key NOT IN (${placeholders});
+    `;
+    const deleteResults = await db.query(deleteQuery, [network, dvt, ...pubkeysArray]);
+    console.log('Deleted Rows affected:', deleteResults.affectedRows);
+    counter.deleted = deleteResults.affectedRows;
+  } else {
+    console.log('No validators to process, skipping deletion of outdated records');
+    // If no validators, we might want to delete all existing records for this network/dvt
+    // Uncomment the following lines if you want to delete all existing records when no validators are found:
+    // const deleteAllQuery = `DELETE FROM beacon_chain_validators_monitoring WHERE network = ? AND dvt_software = ?`;
+    // const deleteResults = await db.query(deleteAllQuery, [network, dvt]);
+    // console.log('Deleted all existing validators. Rows affected:', deleteResults.affectedRows);
+    // counter.deleted = deleteResults.affectedRows;
+  }
 
   console.log('=====================================');
   console.log('Inserted:', counter.inserted, 'Updated:', counter.updated, 'Deleted:', counter.deleted);
