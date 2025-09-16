@@ -26,7 +26,7 @@ const importPublicKeys = async (depositFile, protocol, vcLocation) => {
   // Save the new public keys with its Beaconchain endpoint in the db
   for (const newPublicKey of newPublicKeys) {
     await db.query('INSERT INTO beacon_chain_validators_monitoring (public_key, network, protocol, vc_location) VALUES(?,?,?,?)',
-      [newPublicKey, network, protocol, vcLocation])
+      [newPublicKey, network, protocol.toLowerCase(), vcLocation.toLowerCase()])
   }
   console.log('Process finished.', newPublicKeys.length, 'keys imported from', network)
 }
@@ -35,5 +35,5 @@ const importPublicKeys = async (depositFile, protocol, vcLocation) => {
 if (process.argv[2] && process.argv[3]) {
   importPublicKeys(process.argv[2], process.argv[3], process.argv[4])
 } else {
-  console.error('Example usage: node src/import_deposits.js deposits/deposit_data-xxx.json my-protocol-name my-vc-identifier')
+  console.error('Example usage: node src/import_deposits.js deposits/deposit_data-xxx.json my-protocol-name my-vc-identifier. Always in lowercase!')
 }
